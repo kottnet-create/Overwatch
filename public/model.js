@@ -1,14 +1,14 @@
 (function (root) {
   'use strict';
   const metrics = {
-    solar: {label:'Solar generation',unit:'W',color:'#d3b877'},
-    siteLoad: {label:'Site consumption',unit:'W',color:'#d59873'},
-    garage: {label:'Garage consumption',unit:'W',color:'#8aaeb0'},
-    gridNet: {label:'Grid exchange',unit:'W',color:'#adbc90'},
-    batterySOC: {label:'Battery charge',unit:'%',color:'#a9c190'},
-    hotWater: {label:'Hot water',unit:'°C',color:'#dc9977'},
-    outdoor: {label:'Outdoor temperature',unit:'°C',color:'#8aaeb0'},
-    compressor: {label:'Compressor frequency',unit:'Hz',color:'#adbc90'},
+    solar: {label:'Solar generation',unit:'W',color:'#ffad55'},
+    siteLoad: {label:'Site consumption',unit:'W',color:'#ff7a24'},
+    garage: {label:'Garage consumption',unit:'W',color:'#63a9d8'},
+    gridNet: {label:'Grid exchange',unit:'W',color:'#aeb7c2'},
+    batterySOC: {label:'Battery charge',unit:'%',color:'#ff9b4a'},
+    hotWater: {label:'Hot water',unit:'°C',color:'#ff7a24'},
+    outdoor: {label:'Outdoor temperature',unit:'°C',color:'#63a9d8'},
+    compressor: {label:'Compressor frequency',unit:'Hz',color:'#aeb7c2'},
   };
   function validate(input) {
     if(!input || input.schemaVersion!==1 || !Array.isArray(input.samples) || !input.samples.length || input.samples.length>5000) throw Error('Use schemaVersion 1 with 1–5,000 samples.');
