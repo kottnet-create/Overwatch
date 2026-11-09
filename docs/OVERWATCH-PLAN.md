@@ -4,7 +4,7 @@ This document records the implementation plan for the personal home-energy dashb
 
 ## Goal
 
-Build a local-first dashboard that combines the user's own energy systems, preserves timestamped history, and calculates energy flows and financial results without double-counting. NIBE integration should eventually support both monitoring and carefully controlled user-initiated adjustments.
+Build a local-first dashboard that combines the user's own energy systems, preserves timestamped history, and calculates energy flows and financial results without double-counting.
 
 ## Confirmed data sources
 
@@ -14,21 +14,19 @@ Build a local-first dashboard that combines the user's own energy systems, prese
 | Emaldo | Home battery charge, discharge and state of charge | API/access method not yet confirmed; ask Emaldo support before choosing an integration |
 | Tibber + Tibber Pulse | Grid import/export, live power, consumption history and electricity prices | Official Tibber APIs available; confirm scopes and available fields for this account |
 | Zaptec | EV charger state, charging sessions and energy | Official Zaptec API available; start read-only |
-| myUplink / NIBE F1255 | Heat-pump measurements, selected settings and software information | Official myUplink API available; verify exact points, write permissions, subscription requirements and firmware capabilities |
+| myUplink / NIBE F1255 | Heat-pump measurements and, if exposed, software/version information | Official myUplink API available; verify exact points and account access. Overwatch integration is read-only |
 
 ## Architecture principles
 
-1. **Read first, control later.** Begin with read-only monitoring. Add NIBE write operations only after the read integration is validated and permissions are understood.
-2. **Explicit user confirmation.** Any NIBE setting change must be initiated by the user, show the current and proposed values, validate safe ranges where known, and require confirmation before sending.
-3. **No automatic control initially.** No schedules, optimization, AI-driven changes or background control of the heat pump in the first release.
-4. **Server-side credentials only.** OAuth tokens, passwords, API keys and device identifiers must never be placed in `public/` or browser JavaScript.
-5. **One adapter per provider.** Each adapter authenticates, fetches source data, normalizes units and timestamps, and reports source freshness.
-6. **Canonical measurements.** Store original source, source timestamp, received timestamp, metric, value and unit. Preserve raw provider payloads only where useful and safe.
-7. **No fabricated values.** Missing, stale or unavailable readings remain unknown/null, never silently converted to zero.
-8. **No double counting.** Tibber Pulse is the primary source for grid exchange / whole-home net flow. PV production, battery flow and Zaptec charging are separate components used for attribution and reconciliation, not blindly added to the Pulse total.
-9. **Separate energy and money.** kWh flows and SEK cost/revenue calculations are separate layers with explicit assumptions and tariff components.
-10. **Keep history.** Store timestamped samples in persistent storage on the eventual always-on host/NAS. Backups and retention must be planned before production use.
-11. **Build in stages.** First establish the canonical data model and demo UI, then integrate one source at a time and validate readings against the manufacturer's app.
+1. **Read-only integrations.** Overwatch will not send commands or change settings on the inverter, battery, charger or heat pump.
+2. **Server-side credentials only.** OAuth tokens, passwords, API keys and device identifiers must never be placed in `public/` or browser JavaScript.
+3. **One adapter per provider.** Each adapter authenticates, fetches source data, normalizes units and timestamps, and reports source freshness.
+4. **Canonical measurements.** Store original source, source timestamp, received timestamp, metric, value and unit. Preserve raw provider payloads only where useful and safe.
+5. **No fabricated values.** Missing, stale or unavailable readings remain unknown/null, never silently converted to zero.
+6. **No double counting.** Tibber Pulse is the primary source for grid exchange / whole-home net flow. PV production, battery flow and Zaptec charging are separate components used for attribution and reconciliation, not blindly added to the Pulse total.
+7. **Separate energy and money.** kWh flows and SEK cost/revenue calculations are separate layers with explicit assumptions and tariff components.
+8. **Keep history.** Store timestamped samples in persistent storage on the eventual always-on host/NAS. Backups and retention must be planned before production use.
+9. **Build in stages.** First establish the canonical data model and demo UI, then integrate one source at a time and validate readings against the manufacturer's app.
 
 ## Initial energy model
 
@@ -45,15 +43,19 @@ The dashboard should distinguish at least:
 
 A single instantaneous power reading is not enough to calculate energy: integrate valid, timestamped power samples over time or use authoritative energy counters. Every derived figure must identify its source and assumptions.
 
-## NIBE control and software information
+## NIBE monitoring and software information
 
-The intended NIBE experience has three levels:
+The NIBE F1255 integration in Overwatch is **read-only**, regardless of which controls the myUplink mobile app may offer on the free account.
 
-1. **Monitoring (first):** temperatures, compressor/operating data, hot-water information and other verified F1255 points exposed by myUplink.
-2. **Manual control (later):** selected settings such as temperature, only where the F1255 exposes the setting through the account's myUplink API permissions. Show current value, requested value and units; require an explicit confirmation for each change. Log who/when/what was requested and the API result. Never assume that a successful API response means the physical system has reached the requested state; re-read and verify.
-3. **Software/firmware (informational first):** show available and installed software/version information if the API exposes it. Starting or installing an update is a later optional capability, only if officially supported by the API and the device/account. Do not promise remote update initiation until verified.
+Planned information, subject to what myUplink actually exposes for this device/account:
 
-Do not expose unrestricted generic API write access in the UI. Use an allowlist of explicitly supported setting identifiers and documented safe ranges. If permissions, point semantics or ranges are unclear, keep that setting read-only. No compressor, safety, service or installer parameters should be exposed as ordinary user controls.
+- Current indoor/outdoor and relevant flow/return temperatures
+- Hot-water temperatures and status
+- Compressor frequency and operating information
+- Brine in/out temperatures and other available heat-pump measurements
+- Current software/firmware version and update availability, if exposed by the official API
+
+Overwatch may display update/version information, but will not initiate firmware installation or change heat-pump settings. Users can continue to use the official myUplink app for any controls available under their subscription. Do not assume every possible F1255 reading or firmware action is available through the API.
 
 ## Initial financial model
 
@@ -89,11 +91,6 @@ Avoid claiming battery or solar "profit" without a stated counterfactual and ver
 - Persist data on a durable volume.
 - Add energy-flow, history and cost views only after data is validated.
 
-### Milestone 4 – NIBE manual controls
-- Verify the exact F1255 settings available to this myUplink account.
-- Add only explicitly allowlisted settings, with validation, confirmation, audit logging and read-back verification.
-- Keep automatic control out of scope until separately designed and explicitly approved.
-
 ## Provider documentation to verify during implementation
 
 - Tibber developer portal: https://developer.tibber.com/docs/
@@ -107,9 +104,7 @@ Avoid claiming battery or solar "profit" without a stated counterfactual and ver
 - Exact Huawei inverter model and whether installer/company admin can create a Northbound API account.
 - Emaldo product model and whether Emaldo provides a supported customer/partner API or export.
 - Zaptec charger model.
-- NIBE F1255 firmware version and which measurement/settings points are exposed to this myUplink account.
-- Whether myUplink account/subscription permissions allow the desired settings to be changed.
-- Whether firmware availability and remote update initiation are exposed for this device/account.
+- NIBE F1255 firmware version and which measurement/software information points are exposed to this myUplink account.
 - Whether the Tibber Pulse is connected to the main electricity meter and which grid data fields are available.
 - Electricity supplier, grid operator, tariff, fuse size and export compensation terms.
 - NAS model and supported Node/Docker runtime.
