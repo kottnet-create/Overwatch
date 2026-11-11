@@ -1,1 +1,20 @@
-{"name":"prmgr-observatory-starter","version":"1.0.0","description":"A free local-first home dashboard starter with synthetic demo data","private":true,"type":"module","license":"MIT","engines":{"node":">=22"},"scripts":{"start":"node server.mjs","record":"node collector.mjs --input examples/current-reading.json","test":"node --test test/*.test.mjs","package":"node tools/package.mjs"}}
+{
+  "name": "prmgr-observatory-starter",
+  "version": "1.0.0",
+  "description": "A free local-first home dashboard starter with synthetic demo data",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "record": "node collector.mjs --input examples/current-reading.json",
+    "test": "node --test test/*.test.mjs",
+    "package": "node tools/package.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}
