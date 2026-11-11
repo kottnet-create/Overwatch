@@ -1,7 +1,14 @@
 import WebSocket from 'ws';
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 const API_URL = 'https://api.tibber.com/v1-beta/gql';
 const USER_AGENT = 'Overwatch/0.1.0 (Node.js home-energy-monitor)';
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const HISTORY_FILE = path.join(ROOT, 'data', 'tibber-history.json');
+const SAMPLE_INTERVAL_MS = 5 * 60 * 1000;
+const MAX_HISTORY_SAMPLES = 9000;
 const LIVE_QUERY = `subscription OverwatchLiveMeasurement($homeId: ID!) {
   liveMeasurement(homeId: $homeId) {
     timestamp
@@ -21,11 +28,13 @@ const LIVE_QUERY = `subscription OverwatchLiveMeasurement($homeId: ID!) {
 
 const sleepJitter = ms => Math.round(ms * (0.75 + Math.random() * 0.5));
 
-export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId = process.env.TIBBER_HOME_ID } = {}) {
+export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId = process.env.TIBBER_HOME_ID, historyFile = HISTORY_FILE } = {}) {
   let socket = null;
   let stopped = false;
   let retryTimer = null;
   let retryAttempt = 0;
+  let lastStoredAt = 0;
+  let history = loadHistory();
   let state = {
     configured: Boolean(token),
     status: token ? 'starting' : 'not_configured',
@@ -36,6 +45,31 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
   };
 
   const update = patch => { state = { ...state, ...patch }; };
+
+  function loadHistory() {
+    try {
+      if (!fs.existsSync(historyFile)) return [];
+      const parsed = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
+      if (!Array.isArray(parsed) || parsed.length > MAX_HISTORY_SAMPLES) return [];
+      return parsed.filter(item => item && typeof item.timestamp === 'string' && Number.isFinite(Date.parse(item.timestamp)));
+    } catch { return []; }
+  }
+
+  function storeSample(sample) {
+    const at = Date.parse(sample.timestamp);
+    if (!Number.isFinite(at) || at - lastStoredAt < SAMPLE_INTERVAL_MS) return;
+    history.push({ ...sample });
+    history = history.slice(-MAX_HISTORY_SAMPLES);
+    try {
+      fs.mkdirSync(path.dirname(historyFile), { recursive: true, mode: 0o700 });
+      const temporary = historyFile + '.tmp';
+      fs.writeFileSync(temporary, JSON.stringify(history), { mode: 0o600 });
+      fs.renameSync(temporary, historyFile);
+      lastStoredAt = at;
+    } catch (error) {
+      update({ historyError: 'Could not save local Tibber history: ' + error.message });
+    }
+  }
 
   async function gql(query, variables = {}) {
     const response = await fetch(API_URL, {
@@ -117,24 +151,26 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
       } else if (message.type === 'next') {
         const live = message.payload?.data?.liveMeasurement;
         if (live && Number.isFinite(Number(live.power)) && Number.isFinite(Date.parse(live.timestamp))) {
+          const normalized = {
+            timestamp: live.timestamp,
+            power: Number(live.power),
+            powerProduction: live.powerProduction == null ? null : Number(live.powerProduction),
+            accumulatedConsumption: live.accumulatedConsumption == null ? null : Number(live.accumulatedConsumption),
+            accumulatedCost: live.accumulatedCost == null ? null : Number(live.accumulatedCost),
+            currency: live.currency || null,
+            minPower: live.minPower == null ? null : Number(live.minPower),
+            averagePower: live.averagePower == null ? null : Number(live.averagePower),
+            maxPower: live.maxPower == null ? null : Number(live.maxPower),
+            accumulatedProduction: live.accumulatedProduction == null ? null : Number(live.accumulatedProduction),
+            lastMeterProduction: live.lastMeterProduction == null ? null : Number(live.lastMeterProduction),
+            lastMeterConsumption: live.lastMeterConsumption == null ? null : Number(live.lastMeterConsumption),
+          };
+          storeSample(normalized);
           update({
             status: 'connected',
             message: 'Receiving live measurements from Tibber.',
             homeName: home.appNickname || 'Home',
-            latest: {
-              timestamp: live.timestamp,
-              power: Number(live.power),
-              accumulatedConsumption: Number.isFinite(Number(live.accumulatedConsumption)) ? Number(live.accumulatedConsumption) : null,
-              accumulatedCost: Number.isFinite(Number(live.accumulatedCost)) ? Number(live.accumulatedCost) : null,
-              currency: live.currency || null,
-              minPower: Number.isFinite(Number(live.minPower)) ? Number(live.minPower) : null,
-              averagePower: Number.isFinite(Number(live.averagePower)) ? Number(live.averagePower) : null,
-              maxPower: Number.isFinite(Number(live.maxPower)) ? Number(live.maxPower) : null,
-              powerProduction: Number.isFinite(Number(live.powerProduction)) ? Number(live.powerProduction) : null,
-              accumulatedProduction: Number.isFinite(Number(live.accumulatedProduction)) ? Number(live.accumulatedProduction) : null,
-              lastMeterProduction: Number.isFinite(Number(live.lastMeterProduction)) ? Number(live.lastMeterProduction) : null,
-              lastMeterConsumption: Number.isFinite(Number(live.lastMeterConsumption)) ? Number(live.lastMeterConsumption) : null,
-            },
+            latest: normalized,
             receivedAt: new Date().toISOString(),
           });
         }
@@ -192,8 +228,13 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
       return {
         ...state,
         latest: state.latest,
+        historyCount: history.length,
+        historyError: state.historyError || null,
         stale,
       };
+    },
+    getHistory() {
+      return { source: 'Tibber Pulse', intervalMinutes: 5, samples: history };
     },
     close() {
       stopped = true;
