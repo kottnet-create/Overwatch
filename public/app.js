@@ -1,6 +1,6 @@
 'use strict';
 const M=ObservatoryModel,C=window.OBSERVATORY_CONFIG||{},$=id=>document.getElementById(id);
-let data=M.demo(),mode='connecting',view='overview',tibberLive=null;
+let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[];
 const text=(id,value)=>$(id).textContent=value;
 const formatTime=at=>new Date(at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 const value=(n,unit='W')=>Number.isFinite(n)?(unit==='W'?(n/1000).toFixed(2):unit==='%'?Math.round(n):n.toFixed(1)):'—';
@@ -27,6 +27,7 @@ async function refreshTibber(){
   const response=await fetch('./api/tibber/status',{cache:'no-store'});
   if(!response.ok)throw new Error('Tibber status endpoint returned HTTP '+response.status);
   const status=await response.json(),live=status.latest;tibberLive=(status.status==='connected'&&!status.stale&&live)?status:null;if(tibberLive)mode='live';
+  if(status.historyCount!==tibberHistory.length){const historyResponse=await fetch('./api/tibber/history',{cache:'no-store'});if(historyResponse.ok){const saved=await historyResponse.json();tibberHistory=Array.isArray(saved.samples)?saved.samples:[];}}
   statusEl.className='tibber-state'+(status.status==='connected'&&!status.stale?' online':' offline');
   statusEl.textContent=status.status==='connected'&&!status.stale?'CONNECTED · LIVE':String(status.status||'UNKNOWN').toUpperCase().replaceAll('_',' ');
   const kw=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n))?powerDisplay(Number(n)):'—';
@@ -36,7 +37,7 @@ async function refreshTibber(){
   $('tibber-solar').textContent=live?kw(live.powerProduction):'—';
   if(live){
    const when=new Date(live.timestamp).toLocaleString();
-   detail.textContent=(status.homeName||'Tibber home')+' · Measurement '+when+' · '+(status.stale?'Latest reading is older than 3 minutes.':'Live data received.')+' Values below are live Tibber readings. Other device data is not connected yet.';
+   detail.textContent=(status.homeName||'Tibber home')+' · Measurement '+when+' · '+(status.stale?'Latest reading is older than 3 minutes.':'Live data received.')+' Saved locally: '+(status.historyCount||0)+' samples at 5-minute intervals. '+(status.historyError||'Other device data is not connected yet.');
   }else detail.textContent=(status.message||'No live measurement received yet.')+' The dashboard demo values below are synthetic and are not your home readings.';
  }catch(error){
   tibberLive=null;
@@ -44,6 +45,22 @@ async function refreshTibber(){
   statusEl.textContent='UNAVAILABLE';
   detail.textContent='Could not read Tibber status: '+error.message+' Demo cards below are synthetic examples.';
  }
+}
+
+function tibberChart(id,samples,hours=24){
+ const el=$(id);el.replaceChildren();
+ const end=Date.now(),start=end-hours*3600000,rows=samples.filter(s=>Date.parse(s.timestamp)>=start&&Date.parse(s.timestamp)<=end);
+ const keys=[{key:'power',label:'Tibber power',color:'#ff7a24'},{key:'powerProduction',label:'PV production',color:'#63a9d8'}];
+ const values=rows.flatMap(s=>keys.map(k=>s[k.key])).filter(Number.isFinite);
+ if(rows.length<2||!values.length){const empty=document.createElement('div');empty.className='empty';empty.textContent=rows.length?'Collecting more live samples for this chart.':'Tibber history is being collected. Keep Overwatch running.';el.append(empty);return;}
+ let min=Math.min(0,...values),max=Math.max(...values);if(min===max)max=min+1;const pad=(max-min)*.1;min-=pad;max+=pad;
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label','Tibber power and reported solar production history');
+ const add=(tag,attrs,txt)=>{const e=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(txt!==undefined)e.textContent=txt;svg.append(e);return e;};
+ for(let i=0;i<=3;i++){const y=20+i*58;add('line',{x1:48,x2:780,y1:y,y2:y,stroke:'#35432f'});add('text',{x:2,y:y+4},((max-i*(max-min)/3)/1000).toFixed(1));}
+ for(const k of keys){let segment=[],prev=null;const flush=()=>{if(segment.length>1)add('polyline',{points:segment.map(p=>p.join(',')).join(' '),fill:'none',stroke:k.color,'stroke-width':2,'stroke-linejoin':'round'});segment=[];};for(const s of rows){const n=s[k.key],at=Date.parse(s.timestamp);if(!Number.isFinite(n)){flush();prev=null;continue;}if(prev!==null&&at-prev>10*60*1000)flush();segment.push([48+(at-start)/Math.max(1,end-start)*732,20+(max-n)/(max-min)*174]);prev=at;}flush();}
+ add('text',{x:48,y:220},new Date(start).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));add('text',{x:780,y:220,'text-anchor':'end'},new Date(end).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));
+ const legend=document.createElement('div');legend.className='chart-legend';for(const k of keys){if(rows.some(s=>Number.isFinite(s[k.key]))){const item=document.createElement('span');item.textContent='● '+k.label;item.style.color=k.color;legend.append(item);}}
+ el.append(legend,svg);
 }
 
 function render(){
@@ -99,8 +116,7 @@ function render(){
   if(live){
    const el=$('energy-chart');el.replaceChildren();
    const empty=document.createElement('div');empty.className='empty';
-   empty.textContent='Live history collection is not enabled yet. No synthetic chart is shown.';
-   el.append(empty);
+   tibberChart('energy-chart',tibberHistory,Number($('overview-range').value));
   }else chart('energy-chart',['solar','siteLoad'],subset(Number($('overview-range').value)));
  }
  if(view==='thermal'){
@@ -120,8 +136,8 @@ function render(){
   if(live){
    $('explore-chart').replaceChildren();
    const empty=document.createElement('div');empty.className='empty';
-   empty.textContent='Live history collection is not enabled yet.';$('explore-chart').append(empty);
-   text('coverage','Historical Tibber readings have not been stored yet.');
+   tibberChart('explore-chart',tibberHistory,Number($('overview-range').value));
+   text('coverage',tibberHistory.length+' locally stored Tibber samples. Sampling interval: 5 minutes.');
    $('samples-table').replaceChildren();
   }else{
    chart('explore-chart',[key],data.samples);
