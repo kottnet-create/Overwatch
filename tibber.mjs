@@ -35,6 +35,7 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
   let retryAttempt = 0;
   let lastStoredAt = 0;
   let history = loadHistory();
+  lastStoredAt = history.length ? Date.parse(history.at(-1).timestamp) : 0;
   let state = {
     configured: Boolean(token),
     status: token ? 'starting' : 'not_configured',
