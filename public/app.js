@@ -1,13 +1,14 @@
 'use strict';
 const M=ObservatoryModel,C=window.OBSERVATORY_CONFIG||{},$=id=>document.getElementById(id);
-let data=M.demo(),mode='demo',view='overview';
+let data=M.demo(),mode='connecting',view='overview',tibberLive=null;
 const text=(id,value)=>$(id).textContent=value;
 const formatTime=at=>new Date(at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 const value=(n,unit='W')=>Number.isFinite(n)?(unit==='W'?(n/1000).toFixed(2):unit==='%'?Math.round(n):n.toFixed(1)):'—';
 const unitLabel=unit=>unit==='W'?'kW':unit;
+const powerDisplay=n=>Number.isFinite(n)?(Math.abs(n)<1000?Math.round(n)+' W':(n/1000).toFixed(2)+' kW'):'—';
 function message(s){text('message',s);}
 function show(next){view=['overview','thermal','history','connect'].includes(next)?next:'overview';document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!==view);document.querySelectorAll('[data-view]').forEach(b=>{if(b.dataset.view===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});text('page-title',({overview:C.title||'Home, in view.',thermal:'Heating, understood.',history:'A little perspective.',connect:'Make it yours.'})[view]);render();}
-function card(label,n,unit,note,kind='') {const el=document.createElement('article');el.className='card energy-card '+kind;const l=document.createElement('div');l.className='label';l.textContent=label;const r=document.createElement('div');r.className='reading';r.textContent=value(n,unit);const u=document.createElement('small');u.textContent=unitLabel(unit);r.append(u);const p=document.createElement('p');p.textContent=note;el.append(l,r,p);return el;}
+function card(label,n,unit,note,kind='') {const el=document.createElement('article');el.className='card energy-card '+kind;const l=document.createElement('div');l.className='label';l.textContent=label;const r=document.createElement('div');r.className='reading';r.textContent=unit==='W'?powerDisplay(n):value(n,unit);if(unit!=='W'){const u=document.createElement('small');u.textContent=unitLabel(unit);r.append(u);}const p=document.createElement('p');p.textContent=note;el.append(l,r,p);return el;}
 function subset(hours=24){const to=Date.parse(data.samples.at(-1).at);return data.samples.filter(s=>Date.parse(s.at)>=to-hours*3600000);}
 function chart(id,keys,samples){const el=$(id);el.replaceChildren();const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label',keys.map(k=>M.metrics[k].label).join(' and ')+' over time');
  const finite=samples.flatMap(s=>keys.map(k=>s.values[k])).filter(Number.isFinite);if(!finite.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='No readings in this range.';el.append(empty);return}
@@ -25,32 +26,118 @@ async function refreshTibber(){
  try{
   const response=await fetch('./api/tibber/status',{cache:'no-store'});
   if(!response.ok)throw new Error('Tibber status endpoint returned HTTP '+response.status);
-  const status=await response.json(),live=status.latest;
+  const status=await response.json(),live=status.latest;tibberLive=(status.status==='connected'&&!status.stale&&live)?status:null;if(tibberLive)mode='live';
   statusEl.className='tibber-state'+(status.status==='connected'&&!status.stale?' online':' offline');
   statusEl.textContent=status.status==='connected'&&!status.stale?'CONNECTED · LIVE':String(status.status||'UNKNOWN').toUpperCase().replaceAll('_',' ');
-  const kw=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n))?(Number(n)/1000).toFixed(2)+' kW':'—';
+  const kw=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n))?powerDisplay(Number(n)):'—';
   $('tibber-power').textContent=live?kw(live.power):'—';
   $('tibber-average').textContent=live?kw(live.averagePower):'—';
   $('tibber-peak').textContent=live?kw(live.maxPower):'—';
   $('tibber-solar').textContent=live?kw(live.powerProduction):'—';
   if(live){
    const when=new Date(live.timestamp).toLocaleString();
-   detail.textContent=(status.homeName||'Tibber home')+' · Measurement '+when+' · '+(status.stale?'Latest reading is older than 3 minutes.':'Live data received.')+' Values here come directly from Tibber; the demo cards below are synthetic examples.';
+   detail.textContent=(status.homeName||'Tibber home')+' · Measurement '+when+' · '+(status.stale?'Latest reading is older than 3 minutes.':'Live data received.')+' Values below are live Tibber readings. Other device data is not connected yet.';
   }else detail.textContent=(status.message||'No live measurement received yet.')+' The dashboard demo values below are synthetic and are not your home readings.';
  }catch(error){
+  tibberLive=null;
   statusEl.className='tibber-state offline';
   statusEl.textContent='UNAVAILABLE';
   detail.textContent='Could not read Tibber status: '+error.message+' Demo cards below are synthetic examples.';
  }
 }
 
-function render(){const latest=M.latest(data),v=latest.values,stale=M.age(data)>90000;let badge=mode==='demo'?'SYNTHETIC DEMO':mode==='recorder'?(data.source.toLowerCase().includes('synthetic')?'SYNTHETIC / RECORDER':stale?'RECORDER / STALE':'RECORDER / RECENT'):'IMPORTED / RECORDED';text('mode-badge',badge);text('dataset-label',data.source);text('clock',new Date().toLocaleString(undefined,{weekday:'short',hour:'2-digit',minute:'2-digit'}));text('data-time',(mode==='demo'?'Synthetic sample':'Latest recorded sample')+' · '+formatTime(latest.at));text('scene-source',mode==='demo'?'SAMPLE HOME':'YOUR IMPORTED READINGS');text('subtitle',C.subtitle||'One place to understand your home.');
- $('energy-cards').replaceChildren(card('SOLAR GENERATION',v.solar,'W','Panel production only.','solar'),card('SITE CONSUMPTION',v.siteLoad,'W','Whole property demand.','load'),card(Number.isFinite(v.gridNet)&&v.gridNet<0?'GRID / EXPORT':'GRID / IMPORT',Number.isFinite(v.gridNet)?Math.abs(v.gridNet):null,'W','Positive import · negative export.','grid'),card('BATTERY CHARGE',v.batterySOC,'%','Charge level, not power.','battery'));
- $('split').replaceChildren();for(const [label,n] of [['Total site',v.siteLoad],[C.garageLabel||'Garage',v.garage],[C.houseLabel||'House',M.houseLoad(v)]]){const row=document.createElement('div');row.className='split-row';const name=document.createElement('span');name.textContent=label;const val=document.createElement('b');val.textContent=value(n)+' kW';row.append(name,val);$('split').append(row)}
- $('thermal-cards').replaceChildren(card('HOT WATER',v.hotWater,'°C','Latest recorded temperature.','load'),card('OUTDOOR',v.outdoor,'°C','Latest recorded temperature.','battery'),card('COMPRESSOR',v.compressor,'Hz','Frequency is not input power.','solar'));
- if(view==='overview')chart('energy-chart',['solar','siteLoad'],subset(Number($('overview-range').value)));
- if(view==='thermal'){chart('thermal-chart',['hotWater'],subset());chart('compressor-chart',['compressor'],subset());}
- if(view==='history'){const key=$('metric').value;chart('explore-chart',[key],data.samples);const n=data.samples.filter(s=>Number.isFinite(s.values[key])).length;text('coverage',n+' of '+data.samples.length+' samples contain this reading. Missing values and gaps over 10 minutes break the line. Chart times use your browser’s local timezone.');text('table-metric',M.metrics[key].label+' / '+unitLabel(M.metrics[key].unit));$('samples-table').replaceChildren();data.samples.slice(-12).reverse().forEach(s=>{const row=document.createElement('tr');[formatTime(s.at),Number.isFinite(s.values[key])?value(s.values[key],M.metrics[key].unit):'Unavailable'].forEach(t=>{const td=document.createElement('td');td.textContent=t;row.append(td)});$('samples-table').append(row)});}
+function render(){
+ const latest=M.latest(data),v=latest.values,stale=M.age(data)>90000;
+ const live=Boolean(tibberLive&&tibberLive.latest);
+ const t=live?tibberLive.latest:null;
+ const badge=live?'TIBBER LIVE':mode==='demo'?'SYNTHETIC DEMO':mode==='recorder'?(data.source.toLowerCase().includes('synthetic')?'SYNTHETIC / RECORDER':stale?'RECORDER / STALE':'RECORDER / RECENT'):'IMPORTED / RECORDED';
+ text('mode-badge',badge);
+ text('dataset-label',live?'Tibber Pulse · live measurements':'Synthetic demo · not a real home');
+ text('clock',new Date().toLocaleString(undefined,{weekday:'short',hour:'2-digit',minute:'2-digit'}));
+ text('data-time',live?'Latest Tibber measurement · '+formatTime(t.timestamp):(mode==='demo'?'Synthetic sample':'Latest recorded sample')+' · '+formatTime(latest.at));
+ text('scene-source',live?'LIVE TIBBER DATA':mode==='demo'?'SAMPLE HOME':'YOUR IMPORTED READINGS');
+ text('subtitle',C.subtitle||'One place to understand your home.');
+ if(live){
+  $('energy-cards').replaceChildren(
+   card('TIBBER POWER',t.power,'W','Live reading from the main meter.','grid'),
+   card('SOLAR PRODUCTION',t.powerProduction,'W','Reported by Tibber, if available.','solar'),
+   card('AVERAGE POWER',t.averagePower,'W','Tibber live-measurement average.','load'),
+   card('PEAK POWER',t.maxPower,'W','Tibber live-measurement peak.','battery')
+  );
+ }else{
+  $('energy-cards').replaceChildren(
+   card('SOLAR GENERATION',v.solar,'W','Synthetic example only.','solar'),
+   card('SITE CONSUMPTION',v.siteLoad,'W','Synthetic example only.','load'),
+   card('GRID EXCHANGE',v.gridNet,'W','Synthetic example only.','grid'),
+   card('BATTERY CHARGE',v.batterySOC,'%','Synthetic example only.','battery')
+  );
+ }
+ $('split').replaceChildren();
+ const rows=live
+  ?[['Battery charge','Not connected'],['Whole-home breakdown','Not available yet'],['Historical readings','Collection not enabled']]
+  :[['Total site',value(v.siteLoad)+' kW'],[C.garageLabel||'Garage',value(v.garage)+' kW'],[C.houseLabel||'House',value(M.houseLoad(v))+' kW']];
+ for(const [label,n] of rows){
+  const row=document.createElement('div');row.className='split-row';
+  const name=document.createElement('span');name.textContent=label;
+  const val=document.createElement('b');val.textContent=n;
+  row.append(name,val);$('split').append(row);
+ }
+ if(live){
+  $('thermal-cards').replaceChildren(
+   card('HOT WATER',null,'°C','NIBE is not connected yet.','load'),
+   card('OUTDOOR',null,'°C','NIBE is not connected yet.','battery'),
+   card('COMPRESSOR',null,'Hz','NIBE is not connected yet.','solar')
+  );
+ }else{
+  $('thermal-cards').replaceChildren(
+   card('HOT WATER',v.hotWater,'°C','Synthetic example only.','load'),
+   card('OUTDOOR',v.outdoor,'°C','Synthetic example only.','battery'),
+   card('COMPRESSOR',v.compressor,'Hz','Synthetic example only.','solar')
+  );
+ }
+ if(view==='overview'){
+  if(live){
+   const el=$('energy-chart');el.replaceChildren();
+   const empty=document.createElement('div');empty.className='empty';
+   empty.textContent='Live history collection is not enabled yet. No synthetic chart is shown.';
+   el.append(empty);
+  }else chart('energy-chart',['solar','siteLoad'],subset(Number($('overview-range').value)));
+ }
+ if(view==='thermal'){
+  if(live){
+   for(const id of ['thermal-chart','compressor-chart']){
+    const el=$(id);el.replaceChildren();
+    const empty=document.createElement('div');empty.className='empty';
+    empty.textContent='NIBE readings are not connected yet.';el.append(empty);
+   }
+  }else{
+   chart('thermal-chart',['hotWater'],subset());
+   chart('compressor-chart',['compressor'],subset());
+  }
+ }
+ if(view==='history'){
+  const key=$('metric').value;
+  if(live){
+   $('explore-chart').replaceChildren();
+   const empty=document.createElement('div');empty.className='empty';
+   empty.textContent='Live history collection is not enabled yet.';$('explore-chart').append(empty);
+   text('coverage','Historical Tibber readings have not been stored yet.');
+   $('samples-table').replaceChildren();
+  }else{
+   chart('explore-chart',[key],data.samples);
+   const n=data.samples.filter(s=>Number.isFinite(s.values[key])).length;
+   text('coverage',n+' of '+data.samples.length+' samples contain this reading. Missing values and gaps over 10 minutes break the line. Chart times use your browser’s local timezone.');
+   text('table-metric',M.metrics[key].label+' / '+unitLabel(M.metrics[key].unit));
+   $('samples-table').replaceChildren();
+   data.samples.slice(-12).reverse().forEach(s=>{
+    const row=document.createElement('tr');
+    [formatTime(s.at),Number.isFinite(s.values[key])?value(s.values[key],M.metrics[key].unit):'Unavailable'].forEach(t=>{
+     const td=document.createElement('td');td.textContent=t;row.append(td);
+    });
+    $('samples-table').append(row);
+   });
+  }
+ }
 }
 for(const [key,m] of Object.entries(M.metrics)){const o=document.createElement('option');o.value=key;o.textContent=m.label;$('metric').append(o)}
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{location.hash=b.dataset.view});document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{location.hash=b.dataset.go});window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
