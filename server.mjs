@@ -14,6 +14,7 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   let route;try{route=new URL(req.url,'http://localhost').pathname;}catch{return send(400,'Bad request.');}
   if(route==='/api/history'){try{const data=readHistory(historyFile);return data?send(200,JSON.stringify(data),'application/json'):send(404,'No history yet. Start the recorder first.');}catch{return send(422,'History is invalid or too large. Review the recorder output.');}}
   if(route==='/api/tibber/status')return send(200,JSON.stringify(tibberMonitor.getStatus()),'application/json');
+  if(route==='/api/tibber/history')return send(200,JSON.stringify(tibberMonitor.getHistory()),'application/json');
   let name=routes[route];
   // Only local illustration files under public/assets may be served.
   if(!name&&/^\/assets\/[a-zA-Z0-9_-]+\.(?:svg|png|webp|jpg)$/.test(route))name=route.slice(1);
