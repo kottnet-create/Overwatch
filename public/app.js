@@ -18,6 +18,32 @@ function chart(id,keys,samples){const el=$(id);el.replaceChildren();const ns='ht
  for(const s of samples){const n=s.values[key],at=Date.parse(s.at);if(!Number.isFinite(n)){flush();prev=null;continue}if(prev!==null&&at-prev>600000)flush();points.push([48+(at-first)/Math.max(1,end-first)*732,20+(max-n)/(max-min)*174,s]);prev=at;}flush();});
  element('text',{x:48,y:220},new Date(first).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));element('text',{x:780,y:220,'text-anchor':'end'},new Date(end).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));el.append(svg);
 }
+
+async function refreshTibber(){
+ const statusEl=$('tibber-status'), detail=$('tibber-detail');
+ if(!statusEl||!detail)return;
+ try{
+  const response=await fetch('./api/tibber/status',{cache:'no-store'});
+  if(!response.ok)throw new Error('Tibber status endpoint returned HTTP '+response.status);
+  const status=await response.json(),live=status.latest;
+  statusEl.className='tibber-state'+(status.status==='connected'&&!status.stale?' online':' offline');
+  statusEl.textContent=status.status==='connected'&&!status.stale?'CONNECTED · LIVE':String(status.status||'UNKNOWN').toUpperCase().replaceAll('_',' ');
+  const kw=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n))?(Number(n)/1000).toFixed(2)+' kW':'—';
+  $('tibber-power').textContent=live?kw(live.power):'—';
+  $('tibber-average').textContent=live?kw(live.averagePower):'—';
+  $('tibber-peak').textContent=live?kw(live.maxPower):'—';
+  $('tibber-solar').textContent=live?kw(live.powerProduction):'—';
+  if(live){
+   const when=new Date(live.timestamp).toLocaleString();
+   detail.textContent=(status.homeName||'Tibber home')+' · Measurement '+when+' · '+(status.stale?'Latest reading is older than 3 minutes.':'Live data received.')+' Values here come directly from Tibber; the demo cards below are synthetic examples.';
+  }else detail.textContent=(status.message||'No live measurement received yet.')+' The dashboard demo values below are synthetic and are not your home readings.';
+ }catch(error){
+  statusEl.className='tibber-state offline';
+  statusEl.textContent='UNAVAILABLE';
+  detail.textContent='Could not read Tibber status: '+error.message+' Demo cards below are synthetic examples.';
+ }
+}
+
 function render(){const latest=M.latest(data),v=latest.values,stale=M.age(data)>90000;let badge=mode==='demo'?'SYNTHETIC DEMO':mode==='recorder'?(data.source.toLowerCase().includes('synthetic')?'SYNTHETIC / RECORDER':stale?'RECORDER / STALE':'RECORDER / RECENT'):'IMPORTED / RECORDED';text('mode-badge',badge);text('dataset-label',data.source);text('clock',new Date().toLocaleString(undefined,{weekday:'short',hour:'2-digit',minute:'2-digit'}));text('data-time',(mode==='demo'?'Synthetic sample':'Latest recorded sample')+' · '+formatTime(latest.at));text('scene-source',mode==='demo'?'SAMPLE HOME':'YOUR IMPORTED READINGS');text('subtitle',C.subtitle||'One place to understand your home.');
  $('energy-cards').replaceChildren(card('SOLAR GENERATION',v.solar,'W','Panel production only.','solar'),card('SITE CONSUMPTION',v.siteLoad,'W','Whole property demand.','load'),card(Number.isFinite(v.gridNet)&&v.gridNet<0?'GRID / EXPORT':'GRID / IMPORT',Number.isFinite(v.gridNet)?Math.abs(v.gridNet):null,'W','Positive import · negative export.','grid'),card('BATTERY CHARGE',v.batterySOC,'%','Charge level, not power.','battery'));
  $('split').replaceChildren();for(const [label,n] of [['Total site',v.siteLoad],[C.garageLabel||'Garage',v.garage],[C.houseLabel||'House',M.houseLoad(v)]]){const row=document.createElement('div');row.className='split-row';const name=document.createElement('span');name.textContent=label;const val=document.createElement('b');val.textContent=value(n)+' kW';row.append(name,val);$('split').append(row)}
@@ -35,4 +61,4 @@ $('export').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type
 $('recorder').onclick=async()=>{try{if(location.protocol==='file:')throw Error('Start the optional local server with npm start, then open its printed address.');const response=await fetch('./api/history',{cache:'no-store'});if(!response.ok)throw Error('Recorder history is unavailable. Start the included local server and recorder; see README.');const next=M.validate(await response.json());data=next;mode='recorder';message('Loaded local recorder history. Click again to refresh; this is a snapshot.');render()}catch(e){message(e.message)}};
 if(C.illustration && !/^(?:https?:|\/\/|data:|javascript:)/i.test(C.illustration))$('house-art').src=C.illustration;
 $('house-art').onerror=()=>{$('house-art').onerror=null;$('house-art').src='./assets/starter-house.svg';message('Custom artwork was unavailable. Using the included generic illustration.')};
-show(location.hash.slice(1));setInterval(()=>{if(!document.hidden)render()},60000);
+show(location.hash.slice(1));refreshTibber();setInterval(()=>{if(!document.hidden){render();refreshTibber()}},15000);
