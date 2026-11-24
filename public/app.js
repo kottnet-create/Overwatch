@@ -72,7 +72,7 @@ function drawNibeDialog(parameterId,parameterName,unit){
  if(!dialog.open)dialog.showModal();
 }
 function makeNibeCard(p){
- const label=String(p.parameterName||p.name||p.parameterId||'NIBE input').replace(/\\s*[-–:]?\\s*offset\\b/ig,'').trim(),id=String(p.parameterId??p.id??label),unit=String(p.parameterUnit||p.unit||''),n=p.value===-32768||p.value===null||p.value===undefined?null:Number(p.value);
+ const label=String(p.parameterName||p.name||p.parameterId||'NIBE input').replace(/\\boffset\\b/ig,'').replace(/\\s+/g,' ').trim(),id=String(p.parameterId??p.id??label),unit=String(p.parameterUnit||p.unit||''),n=p.value===-32768||p.value===null||p.value===undefined?null:Number(p.value);
  const el=card(label,n,unit,p.timestamp?'Updated '+new Date(p.timestamp).toLocaleTimeString():'Current myUplink value',/BT1|outdoor|utomhus/i.test(label)?'battery':'load');
  el.classList.add('nibe-click-card');el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-label','Show history for '+label);
  const preview=document.createElement('div');preview.className='nibe-hover-preview';const rows=nibeRowsFor(id,label);preview.innerHTML=rows.length?nibeSparkline(rows):'<span>No local history yet</span>';
