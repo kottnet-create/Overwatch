@@ -116,10 +116,10 @@ The camera UI is configuration-driven. The home overview contains compact camera
 
 | Camera | Role | Status |
 | --- | --- | --- |
-| Tapo C520WS | Garage | User verified local RTSP access in VLC at 192.168.20.137:554 and confirmed live browser playback in Overwatch through go2rtc/WebRTC. UniFi allows TCP 554 from 192.168.1.218 to the camera. ONVIF PTZ pan/tilt has been verified in Agent DVR when the Windows PC is connected to the IoT network. Cross-VLAN ONVIF required additional UniFi policy work; TCP 2020 alone was insufficient for the full session. Digital zoom is listed by TP-Link (12x), but ONVIF/Agent DVR zoom control has not yet been verified. Preset support remains unverified. |
+| Tapo C520WS | Garage | User verified local RTSP access in VLC at 192.168.20.137:554 and confirmed live browser playback in Overwatch through go2rtc/WebRTC. UniFi allows TCP 554 from 192.168.1.218 to the camera. ONVIF PTZ pan/tilt and saving/recalling presets have been verified in Agent DVR when the Windows PC is connected to the IoT network. Cross-VLAN ONVIF required additional UniFi policy work; TCP 2020 alone was insufficient for the full session. Digital zoom works in the Tapo app but ONVIF/Agent DVR zoom control has not been verified. Overwatch PTZ controls and preset management remain to be implemented. |
 | Tapo C460 | Outdoor | Integration pending. Battery camera; local RTSP/ONVIF support has not been verified. |
 
-The `/api/cameras` endpoint exposes metadata only. Stream URLs and credentials must remain server-side in local environment configuration and must never be returned to browser code. Add future cameras to `cameras.mjs`. Browser live video is now confirmed working for the garage camera. PTZ pan/tilt has been verified externally in Agent DVR; Overwatch controls and presets are not yet implemented. Zoom remains to be tested.
+The `/api/cameras` endpoint exposes metadata only. Stream URLs and credentials must remain server-side in local environment configuration and must never be returned to browser code. Add future cameras to `cameras.mjs`. Browser live video is now confirmed working for the garage camera. PTZ pan/tilt and preset save/recall have been verified externally in Agent DVR; Overwatch controls and preset management are not yet implemented. Zoom is not a priority.
 
 
 ### C520WS browser playback bridge
