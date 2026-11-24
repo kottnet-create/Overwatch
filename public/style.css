@@ -49,3 +49,6 @@
 .ptz-presets button{white-space:nowrap}
 .camera-ptz .note{margin:10px 0 0;font-size:11px}
 .camera-ptz .note.error{color:#ffb17b}
+
+.ptz-delete{border-color:#754040;color:#ff9b9b}
+.ptz-delete:hover{background:#351d1d}
