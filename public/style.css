@@ -52,3 +52,15 @@
 
 .ptz-delete{border-color:#754040;color:#ff9b9b}
 .ptz-delete:hover{background:#351d1d}
+
+/* Camera-first layout: give live video the space; keep PTZ controls folded away. */
+.camera-tile:not(.camera-tile-large) .camera-preview{height:clamp(320px,48vw,640px)}
+.camera-tile-large .camera-preview{height:clamp(360px,42vw,620px)}
+.camera-ptz{padding:0;overflow:hidden}
+.camera-ptz>summary{cursor:pointer;list-style:none;padding:13px 15px;color:var(--orange);font:11px ui-monospace,monospace;letter-spacing:1px}
+.camera-ptz>summary::-webkit-details-marker{display:none}
+.camera-ptz>summary:after{content:'＋';float:right}
+.camera-ptz[open]>summary:after{content:'−'}
+.camera-ptz[open]>.ptz-pad,.camera-ptz[open]>.ptz-presets,.camera-ptz[open]>.note{margin-left:14px;margin-right:14px}
+.camera-ptz[open]>.note:last-child{margin-bottom:14px}
+@media(max-width:700px){.camera-tile:not(.camera-tile-large) .camera-preview,.camera-tile-large .camera-preview{height:260px}}
