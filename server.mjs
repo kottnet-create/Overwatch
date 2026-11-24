@@ -4,9 +4,10 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {readHistory} from './history.mjs';
 import {createTibberMonitor} from './tibber.mjs';
+import {createNordPoolPrices} from './nordpool-prices.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const routes={'/':'index.html','/index.html':'index.html','/style.css':'style.css','/app.js':'app.js','/model.js':'model.js','/config.js':'config.js','/assets/starter-house.svg':'assets/starter-house.svg'};
-export function createServer({historyFile=path.join(root,'data/history.json'),tibberMonitor=createTibberMonitor()}={}){
+export function createServer({historyFile=path.join(root,'data/history.json'),tibberMonitor=createTibberMonitor(),nordPoolPrices=createNordPoolPrices()}={}){
  const server=http.createServer((req,res)=>{
   const send=(status,body,type='text/plain; charset=utf-8')=>{res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"});res.end(req.method==='HEAD'?undefined:body)};
   if(!/^(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(req.headers.host||''))return send(403,'Local host only.');
@@ -16,6 +17,10 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   if(route==='/api/tibber/status')return send(200,JSON.stringify(tibberMonitor.getStatus()),'application/json');
   if(route==='/api/tibber/history')return send(200,JSON.stringify(tibberMonitor.getHistory()),'application/json');
   if(route==='/api/tibber/prices')return send(200,JSON.stringify(tibberMonitor.getPrices()),'application/json');
+  if(route==='/api/spot-prices'){
+   nordPoolPrices.refresh().catch(()=>{});
+   return send(200,JSON.stringify(nordPoolPrices.getStatus()),'application/json');
+  }
   let name=routes[route];
   // Only local illustration files under public/assets may be served.
   if(!name&&/^\/assets\/[a-zA-Z0-9_-]+\.(?:svg|png|webp|jpg)$/.test(route))name=route.slice(1);
