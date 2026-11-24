@@ -27,7 +27,7 @@ export function createNibeHistory({dbPath=path.join(process.cwd(),'data','overwa
    unit TEXT NOT NULL DEFAULT '',
    source_at TEXT NOT NULL,
    received_at TEXT NOT NULL,
-   UNIQUE(source, device_id, parameter_id, source_at)
+   UNIQUE(source, device_id, parameter_id, received_at)
   );
   CREATE INDEX IF NOT EXISTS idx_measurements_source_time ON measurements(source, source_at);
   CREATE INDEX IF NOT EXISTS idx_measurements_device_parameter_time ON measurements(device_id, parameter_id, source_at);
@@ -37,11 +37,11 @@ export function createNibeHistory({dbPath=path.join(process.cwd(),'data','overwa
   VALUES (?,?,?,?,?,?,?,?,?)`);
  const prune=db.prepare("DELETE FROM measurements WHERE received_at < ?");
  const history=db.prepare(`SELECT parameter_id AS parameterId, parameter_name AS parameterName,
-  value, unit, source_at AS timestamp, received_at AS receivedAt, device_id AS deviceId
-  FROM measurements WHERE source='myUplink' AND source_at >= ? ORDER BY source_at ASC`);
+  value, unit, received_at AS timestamp, source_at AS sourceTimestamp, device_id AS deviceId
+  FROM measurements WHERE source='myUplink' AND received_at >= ? ORDER BY received_at ASC`);
  const latest=db.prepare(`SELECT parameter_id AS parameterId, parameter_name AS parameterName,
   value, unit, source_at AS timestamp, received_at AS receivedAt, device_id AS deviceId
-  FROM measurements WHERE source='myUplink' ORDER BY source_at DESC LIMIT 499`);
+  FROM measurements WHERE source='myUplink' ORDER BY received_at DESC LIMIT 499`);
  function record(payload){
   const receivedAt=new Date(now()).toISOString();let inserted=0,seen=0;
   for(const device of payload?.devices||[]){
