@@ -108,3 +108,15 @@ Avoid claiming battery or solar "profit" without a stated counterfactual and ver
 - Whether the Tibber Pulse is connected to the main electricity meter and which grid data fields are available.
 - Electricity supplier, grid operator, tariff, fuse size and export compensation terms.
 - NAS model and supported Node/Docker runtime.
+
+
+## Camera monitoring
+
+The camera UI is configuration-driven. The home overview contains compact camera panels and the Cameras page contains larger panels.
+
+| Camera | Role | Status |
+| --- | --- | --- |
+| Tapo C520WS | Garage | User verified local RTSP access in VLC at 192.168.20.137:554. UniFi allows TCP 554 from 192.168.1.218 to the camera. Browser playback is not implemented; a server-side RTSP-to-WebRTC/HLS bridge is required. ONVIF PTZ support, ports and presets must be verified before controls are added. |
+| Tapo C460 | Outdoor | Integration pending. Battery camera; local RTSP/ONVIF support has not been verified. |
+
+The `/api/cameras` endpoint exposes metadata only. Stream URLs and credentials must remain server-side in local environment configuration and must never be returned to browser code. Add future cameras to `cameras.mjs`. This is UI/status scaffolding, not working browser live video or PTZ.
