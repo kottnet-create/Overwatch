@@ -46,7 +46,7 @@ export async function moveCamera(direction){
  const client=await getClient();
  // The onvif package requires a nested velocity object. The camera advertises
  // continuous Pan/Tilt but no continuous Zoom space, so send x/y only.
- await client.ptz.continuousMove({profileToken:activeProfile,velocity:{x:vector.x,y:vector.y},timeout:600});
+ await client.ptz.continuousMove({profileToken:activeProfile,velocity:{panTilt:{x:vector.x,y:vector.y}},timeout:600});
  return {ok:true};
 }
 export async function stopCamera(){
