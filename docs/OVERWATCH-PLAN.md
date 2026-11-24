@@ -117,7 +117,7 @@ The camera UI is configuration-driven. The home overview contains compact camera
 | Camera | Role | Status |
 | --- | --- | --- |
 | Tapo C520WS | Garage | User verified local RTSP access in VLC at 192.168.20.137:554 and confirmed live browser playback in Overwatch through go2rtc/WebRTC. UniFi allows TCP 554 from 192.168.1.218 to the camera. ONVIF PTZ pan/tilt and saving/recalling presets have been verified in Agent DVR when the Windows PC is connected to the IoT network. Cross-VLAN ONVIF required additional UniFi policy work; TCP 2020 alone was insufficient for the full session. Digital zoom works in the Tapo app but ONVIF/Agent DVR zoom control has not been verified. Overwatch server-side ONVIF adapter and UI controls have been added on `overwatch-foundation`; dependency installation, local credentials, and end-to-end runtime verification from the Overwatch host remain. |
-| Tapo C460 | Outdoor | Integration pending. Battery camera; local RTSP/ONVIF support has not been verified. |
+| Tapo C460 | Outdoor | Battery/solar camera on direct Wi-Fi. No standard RTSP/ONVIF; investigate TP-Link proprietary Direct stream via pytapo/Tapo: Cameras Control. User reports no Camera Account or Third-Party Compatibility option in app. Live stream should be on-demand and released when viewer closes. Motion-event push is unverified and may be unavailable because battery models often do not expose ONVIF events. |
 
 The `/api/cameras` endpoint exposes metadata only. Stream URLs and credentials must remain server-side in local environment configuration and must never be returned to browser code. Add future cameras to `cameras.mjs`. Browser live video is now confirmed working for the garage camera. PTZ pan/tilt and preset save/recall have been verified externally in Agent DVR on the IoT network. Overwatch server-side ONVIF adapter and UI controls are committed; installation/configuration and runtime verification are still pending. Zoom is not a priority.
 
@@ -141,3 +141,23 @@ The current Windows PC is the development and interim runtime environment; it is
 - Future display goal: use a Fire TV Stick or other thin client to open a TV-optimized Overwatch dashboard from the always-on host. This is deferred until the existing core features are complete. The TV client should only display the dashboard; server-side integrations and credentials remain on the host.
 - Remote access should be provided through the UniFi VPN (for example WireGuard/Teleport) with narrowly scoped network access, not by exposing the NAS or the local Overwatch server directly to the public internet.
 
+
+
+### Tapo C460 battery-camera integration (research and next steps)
+
+The C460 is connected directly to Wi-Fi (no H200 hub). TP-Link's documentation says battery/solar models including C460 generally do not support RTSP/ONVIF because of their power-saving design. Do not try to reuse the C520WS RTSP/go2rtc or ONVIF path.
+
+A community project, HomeAssistant-Tapo-Control, explicitly lists C460 as supported and provides proprietary TP-Link Direct streams for battery/solar cameras. Direct streams do not pass through go2rtc. The underlying Python library pytapo documents direct streaming and native WebRTC sessions, with FFmpeg required for media decoding. Candidate approach: a small isolated local Python sidecar using a pinned, reviewed pytapo version; Overwatch Node server controls it over loopback only and proxies the resulting media to the browser. Keep C520WS/go2rtc untouched.
+
+Authentication must be verified for this exact C460 firmware. Community documentation indicates newer Tapo firmware may require the TP-Link cloud account credentials (not a Camera Account); never request credentials in chat and never commit them. Store secrets only in the private local .env or a protected local secret file. Ask whether TP-Link account two-step verification is enabled before choosing an auth flow; do not assume it is supported.
+
+Expected behavior:
+- No continuous polling or stream when nobody is viewing the camera.
+- Start a direct stream only on explicit user request/opening the C460 view.
+- Stop the stream and release the session when the view closes or after a short idle timeout.
+- Do not wake the battery camera repeatedly for background thumbnails.
+- Motion-triggered UI updates are a separate research item: community docs say motion entities generally require ONVIF events, which battery/solar models may not expose. Do not promise push alerts until verified. Potential fallback: show the last event/recording only if a safe, supported local API is established.
+
+Network research indicates the community integration uses local camera TCP 443 for control and TCP 8800 for proprietary direct video; 2020 is only relevant if ONVIF events exist. Do not open WAN ports. Before adding any UniFi rules, discover the C460's DHCP IP and test reachability from the Overwatch host. Add only narrow host-to-camera rules after confirming the exact protocol.
+
+No C460 code, credentials, or firewall rules have been added yet. First validate authentication and a single on-demand snapshot/direct stream on the user's Windows development PC, then integrate into Overwatch and test stream shutdown.
