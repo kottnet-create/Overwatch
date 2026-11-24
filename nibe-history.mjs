@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 
 const RETENTION_DAYS=30;
 const MAX_HOURS=24*30;
+const isWantedPoint=name=>/\\bBT(?:1|2|3|6|7|10|11|12|50)\\b/i.test(String(name||''))||/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|kompressor.*hastighet/i.test(String(name||''));
 
 function asIso(value,fallback){
  if(value===undefined||value===null||value==='')return fallback;
@@ -32,6 +33,7 @@ export function createNibeHistory({dbPath=path.join(process.cwd(),'data','overwa
   CREATE INDEX IF NOT EXISTS idx_measurements_source_time ON measurements(source, source_at);
   CREATE INDEX IF NOT EXISTS idx_measurements_device_parameter_time ON measurements(device_id, parameter_id, source_at);
  `);
+ db.prepare(`DELETE FROM measurements WHERE source='myUplink'`).run();
  const insert=db.prepare(`INSERT OR IGNORE INTO measurements
   (source,system_id,device_id,parameter_id,parameter_name,value,unit,source_at,received_at)
   VALUES (?,?,?,?,?,?,?,?,?)`);
@@ -51,7 +53,7 @@ export function createNibeHistory({dbPath=path.join(process.cwd(),'data','overwa
     if(raw===null||raw===undefined||raw===''||!Number.isFinite(n)||n===-32768)continue;
     const parameterId=String(p.parameterId??p.id??p.parameterName??p.name??'');
     const parameterName=String(p.parameterName??p.name??parameterId);
-    if(!parameterId)continue;
+    if(!parameterId||!isWantedPoint(parameterName))continue;
     const sourceAt=asIso(p.timestamp??p.updatedAt??p.lastUpdated??p.time,receivedAt);
     const result=insert.run('myUplink',String(device.systemId??''),String(device.deviceId??''),parameterId,parameterName,n,String(p.parameterUnit??p.unit??''),sourceAt,receivedAt);
     inserted+=Number(result.changes||0);seen++;
