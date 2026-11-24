@@ -158,6 +158,6 @@ Expected behavior:
 - Do not wake the battery camera repeatedly for background thumbnails.
 - Motion-triggered UI updates are a separate research item: community docs say motion entities generally require ONVIF events, which battery/solar models may not expose. Do not promise push alerts until verified. Potential fallback: show the last event/recording only if a safe, supported local API is established.
 
-Network research indicates the community integration uses local camera TCP 443 for control and TCP 8800 for proprietary direct video; 2020 is only relevant if ONVIF events exist. Do not open WAN ports. Before adding any UniFi rules, discover the C460's DHCP IP and test reachability from the Overwatch host. Add only narrow host-to-camera rules after confirming the exact protocol.
+Network research indicates the community integration uses local camera TCP 443 for control and TCP 8800 for proprietary direct video; 2020 is only relevant if ONVIF events exist. User reports the C460 currently has DHCP address 192.168.20.167. Do not open WAN ports. Before adding any UniFi rules, verify that this DHCP address is still assigned to the C460 and test reachability from the Overwatch host. Add only narrow host-to-camera rules after confirming the exact protocol.
 
 No C460 code, credentials, or firewall rules have been added yet. First validate authentication and a single on-demand snapshot/direct stream on the user's Windows development PC, then integrate into Overwatch and test stream shutdown.
