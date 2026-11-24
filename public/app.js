@@ -35,36 +35,59 @@ function renderNibeHistoryChart(id,pattern,label,unit){
  add('text',{x:780,y:220,'text-anchor':'end'},new Date(last).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}));
  host.append(svg);
 }
+function nibeRowsFor(parameterId,parameterName){
+ return nibeHistoryRows.filter(r=>(parameterId&&String(r.parameterId)===String(parameterId))||(!parameterId&&r.parameterName===parameterName)).sort((x,y)=>Date.parse(x.timestamp)-Date.parse(y.timestamp));
+}
+function nibeSparkline(rows){
+ const values=rows.map(r=>Number(r.value)).filter(Number.isFinite);if(!values.length)return '';
+ const min=Math.min(...values),max=Math.max(...values),range=max-min||1;
+ return '<svg viewBox="0 0 220 58" aria-hidden="true"><polyline fill="none" stroke="#ff7a24" stroke-width="2.5" points="'+rows.map((r,i)=>{const n=Number(r.value);return (i/(Math.max(1,rows.length-1))*216+2)+','+(52-(n-min)/range*46)}).join(' ')+'"/></svg>';
+}
+function ensureNibeHistoryDialog(){
+ let dialog=$('nibe-history-dialog');if(dialog)return dialog;
+ dialog=document.createElement('dialog');dialog.id='nibe-history-dialog';dialog.className='nibe-history-dialog';
+ dialog.innerHTML='<div class="nibe-dialog-head"><div><div class="eyebrow">NIBE / LOCAL HISTORY</div><h2 id="nibe-dialog-title">Reading history</h2><p id="nibe-dialog-meta" class="note"></p></div><button type="button" id="nibe-dialog-close" aria-label="Close history">✕</button></div><div class="nibe-dialog-range"><label for="nibe-dialog-hours">Period</label><select id="nibe-dialog-hours"><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option><option value="720">30 days</option></select></div><div id="nibe-dialog-chart" class="chart tall"></div><div class="table-scroll"><table><thead><tr><th>Time</th><th>Value</th></tr></thead><tbody id="nibe-dialog-table"></tbody></table></div>';
+ document.body.append(dialog);
+ $('nibe-dialog-close').onclick=()=>dialog.close();
+ $('nibe-dialog-hours').onchange=()=>drawNibeDialog(dialog.dataset.parameterId,dialog.dataset.parameterName,dialog.dataset.unit);
+ dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close()});
+ return dialog;
+}
+function drawNibeDialog(parameterId,parameterName,unit){
+ const dialog=ensureNibeHistoryDialog(),hours=Number($('nibe-dialog-hours').value||24);
+ const rows=nibeRowsFor(parameterId,parameterName).filter(r=>Date.parse(r.timestamp)>=Date.now()-hours*3600000);
+ $('nibe-dialog-title').textContent=parameterName;
+ $('nibe-dialog-meta').textContent=rows.length+' locally stored samples · '+unit+' · 30-day retention';
+ const chartHost=$('nibe-dialog-chart');chartHost.replaceChildren();
+ if(rows.length<1){const empty=document.createElement('div');empty.className='empty';empty.textContent='No saved readings for this input in the selected period yet.';chartHost.append(empty);}
+ else{
+  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');
+  const vals=rows.map(r=>Number(r.value)),min=Math.min(...vals),max=Math.max(...vals),spread=max-min||1,first=Date.parse(rows[0].timestamp),last=Date.parse(rows.at(-1).timestamp);
+  for(let i=0;i<=3;i++){const y=20+i*58,line=document.createElementNS(ns,'line');line.setAttribute('x1','48');line.setAttribute('x2','780');line.setAttribute('y1',y);line.setAttribute('y2',y);line.setAttribute('stroke','#35432f');svg.append(line);}
+  let seg=[],prev=null;const flush=()=>{if(!seg.length)return;const line=document.createElementNS(ns,'polyline');line.setAttribute('points',seg.join(' '));line.setAttribute('fill','none');line.setAttribute('stroke','#ff7a24');line.setAttribute('stroke-width','2.5');svg.append(line);seg=[];};
+  rows.forEach(r=>{const at=Date.parse(r.timestamp);if(prev!==null&&at-prev>10*60*1000)flush();const x=48+(at-first)/Math.max(1,last-first)*732,y=20+(max-Number(r.value))/spread*174;seg.push(x+','+y);prev=at;});flush();
+  const label=document.createElementNS(ns,'text');label.setAttribute('x','48');label.setAttribute('y','220');label.textContent=new Date(first).toLocaleString();svg.append(label);const endLabel=document.createElementNS(ns,'text');endLabel.setAttribute('x','780');endLabel.setAttribute('y','220');endLabel.setAttribute('text-anchor','end');endLabel.textContent=new Date(last).toLocaleString();svg.append(endLabel);chartHost.append(svg);
+ }
+ const body=$('nibe-dialog-table');body.replaceChildren();rows.slice(-30).reverse().forEach(r=>{const tr=document.createElement('tr'),t=document.createElement('td'),v=document.createElement('td');t.textContent=new Date(r.timestamp).toLocaleString();v.textContent=Number(r.value).toFixed(2)+' '+unit;tr.append(t,v);body.append(tr);});
+ if(!dialog.open)dialog.showModal();
+}
+function makeNibeCard(p){
+ const label=String(p.parameterName||p.name||p.parameterId||'NIBE input'),id=String(p.parameterId??p.id??label),unit=String(p.parameterUnit||p.unit||''),n=p.value===-32768||p.value===null||p.value===undefined?null:Number(p.value);
+ const el=card(label,n,unit,p.timestamp?'Updated '+new Date(p.timestamp).toLocaleTimeString():'Current myUplink value',/BT1|outdoor|utomhus/i.test(label)?'battery':'load');
+ el.classList.add('nibe-click-card');el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-label','Show history for '+label);
+ const preview=document.createElement('div');preview.className='nibe-hover-preview';const rows=nibeRowsFor(id,label);preview.innerHTML=rows.length?nibeSparkline(rows):'<span>No local history yet</span>';
+ const caption=document.createElement('small');caption.textContent=rows.length?rows.length+' saved samples · click for details':'History starts collecting locally';preview.append(caption);el.append(preview);
+ const open=()=>drawNibeDialog(id,label,unit);
+ el.addEventListener('click',open);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}});
+ return el;
+}
 function renderNibeCards(){
  const host=$('thermal-cards');if(!host)return;
- if(!nibePoints.length){
-  host.replaceChildren(
-   card('HOT WATER',null,'°C','Waiting for myUplink readings.','load'),
-   card('OUTDOOR',null,'°C','Waiting for myUplink readings.','battery'),
-   card('COMPRESSOR',null,'Hz','Waiting for myUplink readings.','solar')
-  );return;
- }
- const find=pattern=>nibePoints.find(p=>pattern.test(String(p.parameterName||p.name||'')));
- const specs=[
-  ['OUTDOOR',/outdoor temperature|utomhustemperatur|\(BT1\)/i,'battery'],
-  ['SUPPLY · BT2',/\(BT2\)|framledning/i,'load'],
-  ['RETURN · BT3',/\(BT3\)|returledning/i,'load'],
-  ['HOT WATER · BT7',/\(BT7\)|varmvatten topp/i,'load'],
-  ['HOT WATER CHARGE · BT6',/\(BT6\)|varmvatten laddning/i,'load'],
-  ['BRINE IN · BT10',/\(BT10\)|köldbärare in/i,'battery'],
-  ['BRINE OUT · BT11',/\(BT11\)|köldbärare ut/i,'battery'],
-  ['CONDENSER · BT12',/\(BT12\)|kondensor/i,'load'],
-  ['COMPRESSOR',/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,'solar']
- ];
- const cards=[];
- for(const [label,pattern,kind] of specs){
-  const p=find(pattern);if(!p)continue;
-  const n=p.value===-32768||p.value===null||p.value===undefined?null:Number(p.value);
-  const unit=p.parameterUnit||p.unit||(label==='COMPRESSOR'?'Hz':'°C');
-  cards.push(card(label,Number.isFinite(n)?n:null,unit,(p.parameterName||p.name||'myUplink')+' · '+(p.timestamp?new Date(p.timestamp).toLocaleTimeString():'latest value'),kind));
- }
- host.replaceChildren(...(cards.length?cards:[card('NIBE DATA',null,'°C','Connected, but no recognized temperature points were found.','load')]));
+ if(!nibePoints.length){host.replaceChildren(card('NIBE INPUTS',null,'','Waiting for myUplink readings.','load'));return;}
+ const seen=new Set(),points=nibePoints.filter(p=>{const id=String(p.parameterId??p.id??p.parameterName??p.name??'');if(!id||seen.has(id))return false;seen.add(id);return p.value!==undefined&&p.value!==null&&Number.isFinite(Number(p.value))&&Number(p.value)!==-32768;});
+ host.replaceChildren(...points.map(makeNibeCard));
 }
+
 async function refreshMyUplink(){
  const statusEl=$('myuplink-status'),detail=$('myuplink-detail'),systemsEl=$('myuplink-systems'),connect=$('myuplink-connect');
  if(!statusEl||!detail||!systemsEl)return;
