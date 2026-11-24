@@ -145,3 +145,8 @@ Supply `/input/readings.json`, and grant the container’s `node` user write acc
 Run `npm test` with Node 22+ to exercise data validation, history persistence, chart-gap handling, and server boundaries. No package installation is needed. Packaging: `npm run package`.
 
 See [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The code and generic illustration are MIT-licensed. The PRMGR name identifies the original project; use your own name for redistributed products rather than implying they are official PRMGR releases. This is a community starter with no support service or device-compatibility promise.
+
+
+## Camera overview
+
+Overwatch includes a configuration-driven camera overview and a dedicated Cameras page. Camera metadata is served by the local `/api/cameras` endpoint. RTSP URLs and credentials are not sent to browser code. The garage Tapo C520WS stream was verified in VLC, but browser playback still requires a local RTSP-to-WebRTC/HLS bridge. The outdoor Tapo C460 is listed as integration pending. PTZ controls are not enabled until ONVIF support and required ports are verified. See [docs/OVERWATCH-PLAN.md](docs/OVERWATCH-PLAN.md).
