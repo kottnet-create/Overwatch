@@ -13,7 +13,7 @@ Build a local-first dashboard that combines the user's own energy systems, prese
 | Huawei FusionSolar | PV generation | Investigate Northbound API access and account/installer permissions |
 | Emaldo | Home battery charge, discharge and state of charge | Product confirmed: Power Store, 3 battery modules, 15.36 kWh total storage capacity. Owner describes system as 15 kW; official product information lists up to 10.8 kW charge/discharge. Customer API/access method still unconfirmed |
 | Tibber + Tibber Pulse | Grid import/export, live power, consumption history and electricity prices | Official Tibber APIs available; confirm scopes and available fields for this account |
-| Zaptec | EV charger state, charging sessions and energy | Official Zaptec API available; start read-only |
+| Zaptec | EV charger state, charging sessions and energy | Official Zaptec Cloud REST API and developer documentation verified; OAuth 2.0; account must have installation/charger permissions. Start read-only and avoid deprecated endpoints |
 | myUplink / NIBE F1255 | Heat-pump measurements and, if exposed, software/version information | Official myUplink API available; verify exact points and account access. Overwatch integration is read-only |
 
 ## Architecture principles
