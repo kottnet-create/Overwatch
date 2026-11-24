@@ -228,7 +228,36 @@ function renderConnectionStatus(){
  if(target){const live=Boolean(tibberLive&&tibberLive.latest);target.className='tibber-state'+(live?' online':' offline');target.textContent=live?'CONNECTED · LIVE':'NOT CONNECTED';}
  if(detail)detail.textContent=$('tibber-detail')?.textContent||'Waiting for Tibber status.';
 }
-function cameraPanel(camera,large=false){const el=document.createElement('article');el.className='card camera-tile'+(large?' camera-tile-large':'');const head=document.createElement('div');head.className='heading';const left=document.createElement('div'),eyebrow=document.createElement('div');eyebrow.className='eyebrow';eyebrow.textContent=camera.location||'CAMERA';const title=document.createElement('h2');title.textContent=camera.name;left.append(eyebrow,title);const badge=document.createElement('span');badge.className='tibber-state '+(camera.status==='configured'?'online':'offline');badge.textContent=camera.statusLabel;head.append(left,badge);const preview=document.createElement('div');preview.className='camera-preview';if(camera.playerUrl){const frame=document.createElement('iframe');frame.src=camera.playerUrl;frame.title=camera.name+' live video';frame.loading='lazy';frame.allow='autoplay; fullscreen';frame.referrerPolicy='no-referrer';preview.append(frame);}else{preview.textContent='LIVE VIDEO NOT CONFIGURED';}const model=document.createElement('p');model.className='note';model.textContent=camera.model+' · '+camera.note;el.append(head,preview,model);return el;}
+async function ptzRequest(path,body={},method='POST'){
+ const response=await fetch('./api/cameras/garage/ptz/'+path,{method,headers:{'Content-Type':'application/json'},body:method==='GET'?undefined:JSON.stringify(body),cache:'no-store'});
+ const result=await response.json().catch(()=>({error:'Invalid server response'}));
+ if(!response.ok)throw new Error(result.error||'PTZ request failed ('+response.status+')');
+ return result;
+}
+function cameraPtzControls(){
+ const panel=document.createElement('div');panel.className='camera-ptz';
+ const heading=document.createElement('div');heading.className='eyebrow';heading.textContent='CAMERA CONTROL';panel.append(heading);
+ const pad=document.createElement('div');pad.className='ptz-pad';
+ for(const [direction,label] of [['up','↑'],['left','←'],['stop','■'],['right','→'],['down','↓']]){
+  const button=document.createElement('button');button.type='button';button.className='ptz-button';button.textContent=label;button.setAttribute('aria-label',direction==='stop'?'Stop camera':direction);
+  button.addEventListener('click',async()=>{try{if(direction==='stop')await ptzRequest('stop');else await ptzRequest('move',{direction});}catch(error){status.textContent=error.message;status.className='note error';}});
+  pad.append(button);
+ }
+ panel.append(pad);
+ const presetRow=document.createElement('div');presetRow.className='ptz-presets';
+ const select=document.createElement('select');select.setAttribute('aria-label','Saved camera positions');select.innerHTML='<option value="">Loading saved positions…</option>';
+ const go=document.createElement('button');go.type='button';go.textContent='Gå till';go.addEventListener('click',async()=>{if(!select.value)return;try{await ptzRequest('preset',{token:select.value});status.textContent='Kameran går till vald position.';status.className='note';}catch(error){status.textContent=error.message;status.className='note error';}});
+ presetRow.append(select,go);panel.append(presetRow);
+ const saveRow=document.createElement('div');saveRow.className='ptz-presets';
+ const input=document.createElement('input');input.type='text';input.maxLength=32;input.placeholder='Namn på position';input.setAttribute('aria-label','Preset name');
+ const save=document.createElement('button');save.type='button';save.textContent='Spara position';save.addEventListener('click',async()=>{try{if(!input.value.trim())throw new Error('Ange ett namn på positionen.');await ptzRequest('presets',{name:input.value.trim()});input.value='';await loadPresets();status.textContent='Position sparad på kameran.';status.className='note';}catch(error){status.textContent=error.message;status.className='note error';}});
+ saveRow.append(input,save);panel.append(saveRow);
+ const status=document.createElement('p');status.className='note';status.setAttribute('aria-live','polite');status.textContent='Ansluter till kamerans ONVIF-tjänst…';panel.append(status);
+ async function loadPresets(){const result=await ptzRequest('presets',{},'GET');select.replaceChildren();if(!result.presets.length){const option=document.createElement('option');option.value='';option.textContent='Inga sparade positioner';select.append(option);return;}for(const preset of result.presets){const option=document.createElement('option');option.value=preset.token;option.textContent=preset.name;select.append(option);}}
+ loadPresets().then(()=>{status.textContent='PTZ redo.';status.className='note';}).catch(error=>{status.textContent=error.message;status.className='note error';});
+ return panel;
+}
+function cameraPanel(camera,large=false){const el=document.createElement('article');el.className='card camera-tile'+(large?' camera-tile-large':'');const head=document.createElement('div');head.className='heading';const left=document.createElement('div'),eyebrow=document.createElement('div');eyebrow.className='eyebrow';eyebrow.textContent=camera.location||'CAMERA';const title=document.createElement('h2');title.textContent=camera.name;left.append(eyebrow,title);const badge=document.createElement('span');badge.className='tibber-state '+(camera.status==='live-ready'?'online':'offline');badge.textContent=camera.statusLabel;head.append(left,badge);const preview=document.createElement('div');preview.className='camera-preview';if(camera.playerUrl){const frame=document.createElement('iframe');frame.src=camera.playerUrl;frame.title=camera.name+' live video';frame.loading='lazy';frame.allow='autoplay; fullscreen';frame.referrerPolicy='no-referrer';preview.append(frame);}else{preview.textContent='LIVE VIDEO NOT CONFIGURED';}const model=document.createElement('p');model.className='note';model.textContent=camera.model+' · '+camera.note;el.append(head,preview,model);if(camera.id==='garage-c520ws')el.append(cameraPtzControls());return el;}
 async function refreshCameras(){try{const response=await fetch('./api/cameras',{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);const result=await response.json(),items=Array.isArray(result.cameras)?result.cameras:[];for(const [id,large] of [['camera-home-grid',false],['camera-page-grid',true]]){const host=$(id);if(host)host.replaceChildren(...items.map(c=>cameraPanel(c,large)));}}catch(error){for(const id of ['camera-home-grid','camera-page-grid']){const host=$(id);if(host){const p=document.createElement('p');p.className='note';p.textContent='Camera status unavailable: '+error.message;host.replaceChildren(p);}}}}
 function render(){
  const latest=M.latest(data),v=latest.values,stale=M.age(data)>90000;
