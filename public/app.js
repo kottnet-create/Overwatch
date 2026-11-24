@@ -91,7 +91,7 @@ function renderNibeCards(){
   return p.value!==undefined&&p.value!==null&&Number.isFinite(Number(p.value))&&Number(p.value)!==-32768;
  });
  const order=['BT50','BT1','BT6','BT10','BT11','BT2'];
- const rank=point=>{const name=String(point.parameterName||point.name||'');const match=name.match(/\\bBT(?:1|2|3|6|7|10|11|12|50)\\b/i);const code=match?match[0].toUpperCase():'';const index=order.indexOf(code);return index<0?order.length:index;};
+ const rank=point=>{const name=String(point.parameterName||point.name||'');const match=name.match(/\bBT(?:1|2|3|6|7|10|11|12|50)\b/i);const code=match?match[0].toUpperCase():'';const index=order.indexOf(code);return index<0?order.length:index;};
  points.sort((a,b)=>rank(a)-rank(b));
  host.replaceChildren(...points.map(makeNibeCard));
 }
