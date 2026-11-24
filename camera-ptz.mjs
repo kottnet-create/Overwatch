@@ -41,7 +41,7 @@ export async function listCameraPresets(){
  return presets.map(cleanPreset).filter(p=>p.token);
 }
 export async function moveCamera(direction){
- const vectors={left:{x:-0.45,y:0,zoom:0},right:{x:0.45,y:0,zoom:0},up:{x:0,y:0.45,zoom:0},down:{x:0,y:-0.45,zoom:0}};
+ const vectors={left:{x:-0.45,y:0,zoom:0},right:{x:0.45,y:0,zoom:0},up:{x:0,y:-0.45,zoom:0},down:{x:0,y:0.45,zoom:0}};
  const vector=vectors[direction];if(!vector)throw new Error('Unsupported camera direction.');
  const client=await getClient();
  // Use RelativeMove instead of ContinuousMove: the camera advertises a
