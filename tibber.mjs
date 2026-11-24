@@ -71,22 +71,29 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
   async function refreshPrices() {
     if (stopped || !token || !selectedHomeId) return;
     const now = Date.now();
-    if (priceFetchedAt && now - priceFetchedAt < 20 * 60 * 60 * 1000) return;
+    // Prices normally change once per day. Retry sooner only if tomorrow's
+    // prices have not been published yet.
+    const hasTomorrow = prices.tomorrow.length > 0;
+    const refreshAfter = hasTomorrow ? 20 * 60 * 60 * 1000 : 60 * 60 * 1000;
+    if (priceFetchedAt && now - priceFetchedAt < refreshAfter) return;
     try {
-      const data = await gql(`query OverwatchPrices($homeId: ID!) {
+      const data = await gql(`query OverwatchPrices {
         viewer {
-          home(id: $homeId) {
+          homes {
+            id
             currentSubscription {
               priceInfo(resolution: QUARTER_HOURLY) {
+                current { startsAt total energy tax currency level }
                 today { startsAt total energy tax currency level }
                 tomorrow { startsAt total energy tax currency level }
               }
             }
           }
         }
-      }`, { homeId: selectedHomeId });
-      const info = data.viewer.home?.currentSubscription?.priceInfo;
-      if (!info) throw new Error('Tibber did not return price information for this subscription.');
+      }`);
+      const selectedHome = (data.viewer.homes || []).find(home => home.id === selectedHomeId);
+      const info = selectedHome?.currentSubscription?.priceInfo;
+      if (!info) throw new Error('No price information was returned for the selected Tibber home. Check that the home has an active electricity subscription.');
       const normalize = list => (list || []).map(item => ({
         startsAt: item.startsAt,
         total: Number.isFinite(item.total) ? item.total : null,
@@ -95,11 +102,22 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
         currency: item.currency || null,
         level: item.level || null,
       })).filter(item => Number.isFinite(Date.parse(item.startsAt)));
-      prices = { today: normalize(info.today), tomorrow: normalize(info.tomorrow), fetchedAt: new Date().toISOString(), currency: info.today?.[0]?.currency || info.tomorrow?.[0]?.currency || null, error: null };
+      const today = normalize(info.today);
+      if (!today.length) throw new Error('Tibber returned no prices for today. Tomorrow’s prices may also be unpublished.');
+      prices = {
+        today,
+        tomorrow: normalize(info.tomorrow),
+        current: info.current ? normalize([info.current])[0] : null,
+        fetchedAt: new Date().toISOString(),
+        currency: today[0]?.currency || null,
+        error: null,
+      };
       priceFetchedAt = Date.now();
       savePrices();
     } catch (error) {
-      prices.error = error.message;
+      prices = { ...prices, error: error.message };
+      // Do not mark a failed attempt as successful; retry in one hour.
+      priceFetchedAt = 0;
     }
   }
 
