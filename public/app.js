@@ -235,8 +235,8 @@ async function ptzRequest(path,body={},method='POST'){
  return result;
 }
 function cameraPtzControls(){
- const panel=document.createElement('div');panel.className='camera-ptz';
- const heading=document.createElement('div');heading.className='eyebrow';heading.textContent='CAMERA CONTROL';panel.append(heading);
+ const panel=document.createElement('details');panel.className='camera-ptz';
+ const heading=document.createElement('summary');heading.textContent='Kamerakontroller';panel.append(heading);
  const pad=document.createElement('div');pad.className='ptz-pad';
  for(const [direction,label] of [['up','↑'],['left','←'],['stop','■'],['right','→'],['down','↓']]){
   const button=document.createElement('button');button.type='button';button.className='ptz-button';button.textContent=label;button.setAttribute('aria-label',direction==='stop'?'Stop camera':direction);
