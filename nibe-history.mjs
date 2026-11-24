@@ -40,7 +40,7 @@ export function createNibeHistory({dbPath=path.join(process.cwd(),'data','overwa
   value, unit, received_at AS timestamp, source_at AS sourceTimestamp, device_id AS deviceId
   FROM measurements WHERE source='myUplink' AND received_at >= ? ORDER BY received_at ASC`);
  const latest=db.prepare(`SELECT parameter_id AS parameterId, parameter_name AS parameterName,
-  value, unit, source_at AS timestamp, received_at AS receivedAt, device_id AS deviceId
+  value, unit, received_at AS timestamp, source_at AS sourceTimestamp, received_at AS receivedAt, device_id AS deviceId
   FROM measurements WHERE source='myUplink' ORDER BY received_at DESC LIMIT 499`);
  function record(payload){
   const receivedAt=new Date(now()).toISOString();let inserted=0,seen=0;
