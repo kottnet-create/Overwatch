@@ -86,7 +86,7 @@ function renderPriceChart(){
  status.className='tibber-state'+(p.stale?' offline':' online');
  status.textContent=p.stale?'CACHED · STALE':'NORD POOL · SE3';
  const first=Date.parse(rows[0].startsAt),last=Date.parse(rows.at(-1).startsAt)+15*60*1000;
- let min=Math.min(0,...vals),max=Math.max(...vals);if(min===max)max=min+0.1;const pad=(max-min)*.12;min-=pad;max+=pad;
+ let min=Math.min(...vals),max=Math.max(...vals);const spread=max-min;const pad=spread>0?spread*.12:Math.max(Math.abs(max)*.12,0.02);min-=pad;max+=pad;
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 250');svg.setAttribute('role','img');svg.setAttribute('aria-label','Nord Pool SE3 quarter-hourly spot prices');
  const add=(tag,attrs,txt)=>{const e=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(txt!==undefined)e.textContent=txt;svg.append(e);return e;};
  for(let i=0;i<=4;i++){const y=20+i*48;add('line',{x1:50,x2:780,y1:y,y2:y,stroke:'#35432f'});add('text',{x:2,y:y+4},((max-i*(max-min)/4)*100).toFixed(0));}
