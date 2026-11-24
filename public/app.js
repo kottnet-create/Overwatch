@@ -56,7 +56,7 @@ function tibberChart(id,samples,hours=24){
  const keys=[{key:'power',label:'Tibber power',color:'#ff7a24'},{key:'powerProduction',label:'PV production',color:'#63a9d8'}];
  const values=rows.flatMap(s=>keys.map(k=>s[k.key])).filter(Number.isFinite);
  if(rows.length<2||!values.length){const empty=document.createElement('div');empty.className='empty';empty.textContent=rows.length?'Collecting more live samples for this chart.':'Tibber history is being collected. Keep Overwatch running.';el.append(empty);return;}
- let min=Math.min(0,...values),max=Math.max(...values);if(min===max)max=min+1;const pad=(max-min)*.1;min-=pad;max+=pad;
+ let min=Math.min(...values),max=Math.max(...values);const spread=max-min;const pad=spread>0?spread*.12:Math.max(Math.abs(max)*.12,1);min-=pad;max+=pad;
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label','Tibber power and reported solar production history');
  const add=(tag,attrs,txt)=>{const e=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(txt!==undefined)e.textContent=txt;svg.append(e);return e;};
  for(let i=0;i<=3;i++){const y=20+i*58;add('line',{x1:48,x2:780,y1:y,y2:y,stroke:'#35432f'});add('text',{x:2,y:y+4},((max-i*(max-min)/3)/1000).toFixed(1));}
