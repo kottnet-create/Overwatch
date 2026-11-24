@@ -44,9 +44,9 @@ export async function moveCamera(direction){
  const vectors={left:{x:-0.45,y:0,zoom:0},right:{x:0.45,y:0,zoom:0},up:{x:0,y:0.45,zoom:0},down:{x:0,y:-0.45,zoom:0}};
  const vector=vectors[direction];if(!vector)throw new Error('Unsupported camera direction.');
  const client=await getClient();
- // The onvif package PTZ API expects scalar x/y/zoom values, not a nested velocity object.
- // This camera advertises continuous Pan/Tilt but no continuous Zoom space.
- await client.ptz.continuousMove({profileToken:activeProfile,x:vector.x,y:vector.y,timeout:600,onlySendPanTilt:true});
+ // The onvif package requires a nested velocity object. The camera advertises
+ // continuous Pan/Tilt but no continuous Zoom space, so send x/y only.
+ await client.ptz.continuousMove({profileToken:activeProfile,velocity:{x:vector.x,y:vector.y},timeout:600});
  return {ok:true};
 }
 export async function stopCamera(){
