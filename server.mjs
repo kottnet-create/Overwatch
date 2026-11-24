@@ -8,15 +8,21 @@ import {createNordPoolPrices} from './nordpool-prices.mjs';
 import {createMyUplink} from './myuplink.mjs';
 import {createNibeHistory} from './nibe-history.mjs';
 import {getPublicCameras} from './cameras.mjs';
+import {getCameraPtzStatus,listCameraPresets,moveCamera,stopCamera,saveCameraPreset,gotoCameraPreset,deleteCameraPreset} from './camera-ptz.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
+async function readJsonBody(req){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw new Error('Request body too large.');}if(!raw)return {};const value=JSON.parse(raw);if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid request body.');return value;}
 const routes={'/':'index.html','/index.html':'index.html','/style.css':'style.css','/app.js':'app.js','/model.js':'model.js','/config.js':'config.js','/assets/starter-house.svg':'assets/starter-house.svg'};
 export function createServer({historyFile=path.join(root,'data/history.json'),tibberMonitor=createTibberMonitor(),nordPoolPrices=createNordPoolPrices(),myUplink=createMyUplink({root}),nibeHistory=createNibeHistory({dbPath:process.env.OVERWATCH_DB_PATH?path.resolve(root,process.env.OVERWATCH_DB_PATH):path.join(root,'data','overwatch.sqlite')}),autoCollect=false}={}){
- const server=http.createServer((req,res)=>{
+ const server=http.createServer(async(req,res)=>{
   const send=(status,body,type='text/plain; charset=utf-8')=>{res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-src 'self' http://127.0.0.1:1984 http://localhost:1984; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"});res.end(req.method==='HEAD'?undefined:body)};
   if(!/^(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(req.headers.host||''))return send(403,'Local host only.');
-  if(!['GET','HEAD'].includes(req.method))return send(405,'Read-only server.');
+  if(!['GET','HEAD','POST','DELETE'].includes(req.method))return send(405,'Method not allowed.');
+  if(req.method!=='GET'&&req.method!=='HEAD'){const origin=req.headers.origin;if(origin&&!/^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin))return send(403,'Cross-origin request blocked.');}
   let route;try{route=new URL(req.url,'http://localhost').pathname;}catch{return send(400,'Bad request.');}
   if(route==='/api/cameras')return send(200,JSON.stringify({cameras:getPublicCameras()}),'application/json');
+  if(route==='/api/cameras/garage/ptz/status'&&req.method==='GET')return send(200,JSON.stringify(getCameraPtzStatus()),'application/json');
+  if(route==='/api/cameras/garage/ptz/presets'&&req.method==='GET'){try{return send(200,JSON.stringify({presets:await listCameraPresets()}),'application/json');}catch(error){return send(503,JSON.stringify({error:error.message}),'application/json');}}
+  if(route.startsWith('/api/cameras/garage/ptz/')&&['POST','DELETE'].includes(req.method)){try{const body=await readJsonBody(req);let result;if(route==='/api/cameras/garage/ptz/move'&&req.method==='POST')result=await moveCamera(body.direction);else if(route==='/api/cameras/garage/ptz/stop'&&req.method==='POST')result=await stopCamera();else if(route==='/api/cameras/garage/ptz/presets'&&req.method==='POST')result=await saveCameraPreset(body.name);else if(route==='/api/cameras/garage/ptz/preset'&&req.method==='POST')result=await gotoCameraPreset(body.token);else if(route==='/api/cameras/garage/ptz/preset'&&req.method==='DELETE')result=await deleteCameraPreset(body.token);else return send(404,'Not found.');return send(200,JSON.stringify(result),'application/json');}catch(error){return send(400,JSON.stringify({error:error.message}),'application/json');}}
   if(route==='/api/myuplink/connect')return myUplink.connect(req,res,send);
   if(route==='/api/myuplink/callback')return myUplink.callback(req,res,send);
   if(route==='/api/myuplink/status')return myUplink.status(send);
