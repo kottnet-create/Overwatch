@@ -38,10 +38,13 @@ async function refreshMyUplink(){
    const payload=result.data||{},items=Array.isArray(payload)?payload:(payload.systems||payload.items||[]);
    const names=items.map(x=>x.name||x.systemName||x.title).filter(Boolean);
    systemsEl.textContent=items.length?'Found '+items.length+' system(s): '+(names.join(', ')||'myUplink system')+'. Reading device points…':'myUplink is connected, but no systems were returned.';
+   statusEl.className='tibber-state online';statusEl.textContent='CONNECTED';
    const pr=await fetch('./api/myuplink/points',{cache:'no-store'}),pointResult=await pr.json();
-   if(!pr.ok)throw new Error(pointResult.error||'Could not read NIBE points.');
+   if(!pr.ok){systemsEl.textContent+=' Device points could not be loaded: '+(pointResult.error||'HTTP '+pr.status)+'.';return;}
    const devices=pointResult.devices||[],all=devices.flatMap(d=>(d.points||[]).map(p=>({...p,deviceName:d.deviceName||d.productName||'NIBE'})));
    systemsEl.textContent+=' Found '+devices.length+' device(s) and '+all.length+' available data point(s).';
+   if(pointResult.diagnostics?.length)systemsEl.textContent+=' Details: '+pointResult.diagnostics.map(d=>(d.deviceName||d.systemName||d.stage)+': '+d.error).join(' | ');
+
    const pick=patterns=>all.find(p=>patterns.some(q=>String(p.parameterName||p.name||'').toLowerCase().includes(q)));
    const numeric=p=>p&&p.value!==null&&p.value!==undefined&&Number.isFinite(Number(p.value))?Number(p.value):null;
    const temp=p=>numeric(p)===null?null:{value:numeric(p),unit:p.parameterUnit||p.unit||'°C',name:p.parameterName||p.name||'NIBE reading'};
@@ -63,7 +66,7 @@ async function refreshMyUplink(){
   }
  }catch(error){
   statusEl.className='tibber-state offline';statusEl.textContent='UNAVAILABLE';
-  detail.textContent='Could not check myUplink: '+error.message;
+  detail.textContent='Could not check myUplink account: '+error.message;
  }
 }
 async function refreshTibber(){
