@@ -24,3 +24,13 @@
 .nibe-dialog-range select{min-width:140px}
 .nibe-dialog-table{max-height:220px;overflow:auto}
 @media(max-width:700px){.nibe-hover-preview{display:none!important}.nibe-history-dialog{padding:16px}.nibe-dialog-head h2{font-size:18px}}
+
+/* Dedicated connections overview */
+.connection-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:18px 0 22px}
+.connection-tile{min-width:0}
+.connection-tile h2{margin:5px 0}
+.connection-tile .heading{align-items:center;margin-bottom:10px}
+.connection-tile .connection-diagnostics{overflow-wrap:anywhere;font-size:10px}
+.connection-detail{font-size:11px;line-height:1.6;color:#a2a7ad;margin-top:10px;overflow-wrap:anywhere}
+.connection-grid+.tibber-live{margin-top:18px}
+@media(max-width:800px){.connection-grid{grid-template-columns:1fr}}
