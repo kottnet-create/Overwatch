@@ -203,7 +203,7 @@ function render(){
   const val=document.createElement('b');val.textContent=n;
   row.append(name,val);$('split').append(row);
  }
- if(live){
+ if(nibePoints.length||live){
   renderNibeCards();
  }else{
   $('thermal-cards').replaceChildren(
