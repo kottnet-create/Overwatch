@@ -69,20 +69,18 @@ export function createMyUplink({root=process.cwd(),fetchImpl=fetch}={}) {
     const systems=Array.isArray(response)?response:(response.systems||response.items||[]);
     const results=[],diagnostics=[];
     for(const system of systems){
-     if(!system.id){diagnostics.push({systemName:system.name||'Unknown',error:'System response did not contain an id.'});continue;}
-     let detail;
-     try{detail=await apiGet('/v2/systems/'+encodeURIComponent(system.id));}
-     catch(e){diagnostics.push({systemName:system.name||'Unknown',stage:'system details',error:e.message});continue;}
-     const devices=detail.devices||detail.systemDevices||system.devices||[];
-     if(!devices.length)diagnostics.push({systemName:system.name||detail.name||'Unknown',stage:'device discovery',error:'No devices were listed in the system details response.'});
+     const systemId=system.systemId||system.id;
+     const devices=system.devices||[];
+     if(!systemId){diagnostics.push({systemName:system.name||'Unknown',stage:'system discovery',error:'System entry has no systemId.'});continue;}
+     if(!devices.length){diagnostics.push({systemName:system.name||'Unknown',stage:'device discovery',error:'No devices were included in /v2/systems/me.'});continue;}
      for(const device of devices){
       const deviceId=device.id||device.deviceId;
-      if(!deviceId){diagnostics.push({deviceName:device.name||'Unknown',stage:'device discovery',error:'Device response did not contain an id.'});continue;}
+      if(!deviceId){diagnostics.push({deviceName:device.name||'Unknown',stage:'device discovery',error:'Device entry has no id.'});continue;}
       const deviceName=device.name||device.deviceName||device.productName||'NIBE device';
       try{
-       const info=await apiGet('/v2/devices/'+encodeURIComponent(deviceId));
        const points=await apiGet('/v2/devices/'+encodeURIComponent(deviceId)+'/points');
-       results.push({systemId:system.id,systemName:system.name||detail.name,deviceId,deviceName:info.name||info.deviceName||deviceName,productName:info.productName||device.productName,points:Array.isArray(points)?points:[]});
+       const list=Array.isArray(points)?points:(points.points||points.items||[]);
+       results.push({systemId,systemName:system.name,deviceId,deviceName,productName:device.productName||device.product,points:list});
       }catch(e){diagnostics.push({deviceName,deviceId,stage:'device points',error:e.message});}
      }
     }
