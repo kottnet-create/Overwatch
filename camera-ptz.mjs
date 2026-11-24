@@ -11,7 +11,6 @@ async function getClient(){
  if(!configured())throw new Error('ONVIF is not configured. Add TAPO_ONVIF_USER and TAPO_ONVIF_PASSWORD to the private .env file.');
  if(!clientPromise){
   clientPromise=(async()=>{
-   const parsed=new URL(url);
    const client=new Onvif({url,username,password,timeout:8000,preserveAddress:true});
    client.on('warn',error=>console.warn('ONVIF warning:',error.message));
    await client.connect();
