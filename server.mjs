@@ -18,6 +18,7 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   if(route==='/api/myuplink/callback')return myUplink.callback(req,res,send);
   if(route==='/api/myuplink/status')return myUplink.status(send);
   if(route==='/api/myuplink/systems')return myUplink.systems(send);
+  if(route==='/api/myuplink/points')return myUplink.points(send);
   if(route==='/api/history'){try{const data=readHistory(historyFile);return data?send(200,JSON.stringify(data),'application/json'):send(404,'No history yet. Start the recorder first.');}catch{return send(422,'History is invalid or too large. Review the recorder output.');}}
   if(route==='/api/tibber/status')return send(200,JSON.stringify(tibberMonitor.getStatus()),'application/json');
   if(route==='/api/tibber/history')return send(200,JSON.stringify(tibberMonitor.getHistory()),'application/json');
