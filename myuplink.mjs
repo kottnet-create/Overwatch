@@ -63,29 +63,30 @@ export function createMyUplink({root=process.cwd(),fetchImpl=fetch}={}) {
   },
   status(send){const t=readTokens();return json(send,200,{connected:Boolean(t?.access_token),provider:'myUplink',readOnly:true,scope:'READSYSTEM',message:t?.access_token?'myUplink account connected.':'Connect your myUplink account to begin.'});},
   async systems(send){try{const data=await apiGet('/v2/systems/me');return json(send,200,{connected:true,readOnly:true,data});}catch(e){return json(send,readTokens()?.access_token?502:401,{connected:false,readOnly:true,error:e.message});}},
-  async points(send){
-   try{
-    const response=await apiGet('/v2/systems/me');
-    const systems=Array.isArray(response)?response:(response.systems||response.items||[]);
-    const results=[],diagnostics=[];
-    for(const system of systems){
-     const systemId=system.systemId||system.id;
-     const devices=system.devices||[];
-     if(!systemId){diagnostics.push({systemName:system.name||'Unknown',stage:'system discovery',error:'System entry has no systemId.'});continue;}
-     if(!devices.length){diagnostics.push({systemName:system.name||'Unknown',stage:'device discovery',error:'No devices were included in /v2/systems/me.'});continue;}
-     for(const device of devices){
-      const deviceId=device.id||device.deviceId;
-      if(!deviceId){diagnostics.push({deviceName:device.name||'Unknown',stage:'device discovery',error:'Device entry has no id.'});continue;}
-      const deviceName=device.name||device.deviceName||device.productName||'NIBE device';
-      try{
-       const points=await apiGet('/v2/devices/'+encodeURIComponent(deviceId)+'/points');
-       const list=Array.isArray(points)?points:(points.points||points.items||[]);
-       results.push({systemId,systemName:system.name,deviceId,deviceName,productName:device.productName||device.product,points:list});
-      }catch(e){diagnostics.push({deviceName,deviceId,stage:'device points',error:e.message});}
-     }
+  async fetchPointData(){
+   const response=await apiGet('/v2/systems/me');
+   const systems=Array.isArray(response)?response:(response.systems||response.items||[]);
+   const results=[],diagnostics=[];
+   for(const system of systems){
+    const systemId=system.systemId||system.id,devices=system.devices||[];
+    if(!systemId){diagnostics.push({systemName:system.name||'Unknown',stage:'system discovery',error:'System entry has no systemId.'});continue;}
+    if(!devices.length){diagnostics.push({systemName:system.name||'Unknown',stage:'device discovery',error:'No devices were included in /v2/systems/me.'});continue;}
+    for(const device of devices){
+     const deviceId=device.id||device.deviceId;
+     if(!deviceId){diagnostics.push({deviceName:device.name||'Unknown',stage:'device discovery',error:'Device entry has no id.'});continue;}
+     const deviceName=device.name||device.deviceName||device.productName||'NIBE device';
+     try{
+      const points=await apiGet('/v2/devices/'+encodeURIComponent(deviceId)+'/points');
+      const list=Array.isArray(points)?points:(points.points||points.items||[]);
+      results.push({systemId,systemName:system.name,deviceId,deviceName,productName:device.productName||device.product,points:list});
+     }catch(e){diagnostics.push({deviceName,deviceId,stage:'device points',error:e.message});}
     }
-    return json(send,200,{connected:true,readOnly:true,deviceCount:results.length,devices:results,diagnostics});
-   }catch(e){return json(send,readTokens()?.access_token?502:401,{connected:false,readOnly:true,error:e.message});}
+   }
+   return {connected:true,readOnly:true,deviceCount:results.length,devices:results,diagnostics};
+  },
+  async points(send){
+   try{return json(send,200,await this.fetchPointData());}
+   catch(e){return json(send,readTokens()?.access_token?502:401,{connected:false,readOnly:true,error:e.message});}
   },
   close(){pendingState=null;}
  };
