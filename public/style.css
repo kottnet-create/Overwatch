@@ -36,3 +36,5 @@
 @media(max-width:800px){.connection-grid{grid-template-columns:1fr}}
 
 .camera-home{margin-top:20px}.camera-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.camera-tile{min-width:0}.camera-tile .heading{align-items:center}.camera-tile h2{margin:5px 0}.camera-preview{height:145px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#252a30,#101215);border:1px solid var(--line);border-radius:5px;color:var(--orange);font:11px ui-monospace,monospace;letter-spacing:1px}.camera-tile-large .camera-preview{height:clamp(220px,38vw,440px)}@media(max-width:700px){.camera-grid{grid-template-columns:1fr}.camera-preview{height:125px}}
+
+.camera-preview{overflow:hidden;position:relative}.camera-preview iframe{display:block;width:100%;height:100%;border:0;background:#000}
