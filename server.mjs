@@ -5,14 +5,19 @@ import {fileURLToPath} from 'node:url';
 import {readHistory} from './history.mjs';
 import {createTibberMonitor} from './tibber.mjs';
 import {createNordPoolPrices} from './nordpool-prices.mjs';
+import {createMyUplink} from './myuplink.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const routes={'/':'index.html','/index.html':'index.html','/style.css':'style.css','/app.js':'app.js','/model.js':'model.js','/config.js':'config.js','/assets/starter-house.svg':'assets/starter-house.svg'};
-export function createServer({historyFile=path.join(root,'data/history.json'),tibberMonitor=createTibberMonitor(),nordPoolPrices=createNordPoolPrices()}={}){
+export function createServer({historyFile=path.join(root,'data/history.json'),tibberMonitor=createTibberMonitor(),nordPoolPrices=createNordPoolPrices(),myUplink=createMyUplink({root})}={}){
  const server=http.createServer((req,res)=>{
   const send=(status,body,type='text/plain; charset=utf-8')=>{res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"});res.end(req.method==='HEAD'?undefined:body)};
   if(!/^(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(req.headers.host||''))return send(403,'Local host only.');
   if(!['GET','HEAD'].includes(req.method))return send(405,'Read-only server.');
   let route;try{route=new URL(req.url,'http://localhost').pathname;}catch{return send(400,'Bad request.');}
+  if(route==='/api/myuplink/connect')return myUplink.connect(req,res,send);
+  if(route==='/api/myuplink/callback')return myUplink.callback(req,res,send);
+  if(route==='/api/myuplink/status')return myUplink.status(send);
+  if(route==='/api/myuplink/systems')return myUplink.systems(send);
   if(route==='/api/history'){try{const data=readHistory(historyFile);return data?send(200,JSON.stringify(data),'application/json'):send(404,'No history yet. Start the recorder first.');}catch{return send(422,'History is invalid or too large. Review the recorder output.');}}
   if(route==='/api/tibber/status')return send(200,JSON.stringify(tibberMonitor.getStatus()),'application/json');
   if(route==='/api/tibber/history')return send(200,JSON.stringify(tibberMonitor.getHistory()),'application/json');
@@ -28,7 +33,7 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   const file=path.join(root,'public',name);
   try{const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink())return send(404,'Not found.');const types={'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp'};return send(200,fs.readFileSync(file),types[path.extname(file)]);}catch{return send(404,'Not found.');}
  });
- server.on('close',()=>tibberMonitor.close());
+ server.on('close',()=>{tibberMonitor.close();myUplink.close();});
  return server;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
