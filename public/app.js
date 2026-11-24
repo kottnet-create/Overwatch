@@ -35,11 +35,31 @@ async function refreshMyUplink(){
   if(status.connected){
    const r=await fetch('./api/myuplink/systems',{cache:'no-store'}),result=await r.json();
    if(!r.ok)throw new Error(result.error||'Could not read myUplink systems.');
-   const payload=result.data||{},items=Array.isArray(payload)?payload:(payload.items||payload.systems||[]);
-   if(items.length){
-    const names=items.map(x=>x.name||x.systemName||x.title).filter(Boolean);
-    systemsEl.textContent=names.length?'Found '+items.length+' system(s): '+names.join(', '):'Found '+items.length+' myUplink system(s). Device details will be mapped next.';
-   }else systemsEl.textContent='myUplink is connected. The account response was received; system data format needs to be mapped before showing measurements.';
+   const payload=result.data||{},items=Array.isArray(payload)?payload:(payload.systems||payload.items||[]);
+   const names=items.map(x=>x.name||x.systemName||x.title).filter(Boolean);
+   systemsEl.textContent=items.length?'Found '+items.length+' system(s): '+(names.join(', ')||'myUplink system')+'. Reading device points…':'myUplink is connected, but no systems were returned.';
+   const pr=await fetch('./api/myuplink/points',{cache:'no-store'}),pointResult=await pr.json();
+   if(!pr.ok)throw new Error(pointResult.error||'Could not read NIBE points.');
+   const devices=pointResult.devices||[],all=devices.flatMap(d=>(d.points||[]).map(p=>({...p,deviceName:d.deviceName||d.productName||'NIBE'})));
+   systemsEl.textContent+=' Found '+devices.length+' device(s) and '+all.length+' available data point(s).';
+   const pick=patterns=>all.find(p=>patterns.some(q=>String(p.parameterName||p.name||'').toLowerCase().includes(q)));
+   const numeric=p=>p&&p.value!==null&&p.value!==undefined&&Number.isFinite(Number(p.value))?Number(p.value):null;
+   const temp=p=>numeric(p)===null?null:{value:numeric(p),unit:p.parameterUnit||p.unit||'°C',name:p.parameterName||p.name||'NIBE reading'};
+   const candidates=[
+    ['HOT WATER',pick(['hot water','hotwater','tap water','hw temp'])],
+    ['OUTDOOR',pick(['outdoor temperature','outdoor temp'])],
+    ['COMPRESSOR',pick(['compressor frequency','compressor hz','compressor speed'])],
+    ['SUPPLY',pick(['supply temperature','supply temp','flow temperature'])],
+    ['RETURN',pick(['return temperature','return temp'])],
+    ['BRINE IN',pick(['brine in','brine inlet'])],
+    ['BRINE OUT',pick(['brine out','brine outlet'])]
+   ];
+   const shown=candidates.filter(([,p])=>p);
+   $('thermal-cards').replaceChildren(...shown.map(([label,p])=>{const n=numeric(p),unit=p.parameterUnit||p.unit||'';return card(label,n,unit==='°C'?'°C':unit==='Hz'?'Hz':unit||'°C',(p.parameterName||p.name||'myUplink')+' · '+(p.timestamp?new Date(p.timestamp).toLocaleString():'latest value'),'load')}));
+   if(!shown.length)$('thermal-cards').replaceChildren(card('NIBE DATA',null,'°C','Points were received, but no familiar temperature/frequency labels were matched yet.','load'));
+   const summary=all.slice(0,40).map(p=>(p.parameterName||p.name||('Parameter '+p.parameterId))+': '+(p.value??'—')+' '+(p.parameterUnit||p.unit||'')).join(' · ');
+   systemsEl.textContent+=' '+(summary||'No data points returned.');
+
   }
  }catch(error){
   statusEl.className='tibber-state offline';statusEl.textContent='UNAVAILABLE';
