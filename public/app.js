@@ -1,6 +1,6 @@
 'use strict';
 const M=ObservatoryModel,C=window.OBSERVATORY_CONFIG||{},$=id=>document.getElementById(id);
-let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[],tibberPrices=null,nibePoints=[],nibePointUpdated=null;
+let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[],tibberPrices=null,nibePoints=[],nibePointUpdated=null,nibeHistoryRows=[];
 const text=(id,value)=>$(id).textContent=value;
 const formatTime=at=>new Date(at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 const value=(n,unit='W')=>Number.isFinite(n)?(unit==='W'?(n/1000).toFixed(2):unit==='%'?Math.round(n):n.toFixed(1)):'—';
@@ -20,6 +20,21 @@ function chart(id,keys,samples){const el=$(id);el.replaceChildren();const ns='ht
  element('text',{x:48,y:220},new Date(first).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));element('text',{x:780,y:220,'text-anchor':'end'},new Date(end).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));el.append(svg);
 }
 
+function renderNibeHistoryChart(id,pattern,label,unit){
+ const host=$(id);if(!host)return;host.replaceChildren();
+ const rows=nibeHistoryRows.filter(p=>pattern.test(String(p.parameterName||''))&&Number.isFinite(Number(p.value))).sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));
+ if(!rows.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='No stored NIBE history yet. The first sample is collected when the local server starts.';host.append(empty);return;}
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label',label+' from locally stored NIBE readings');
+ const vals=rows.map(p=>Number(p.value));let min=Math.min(...vals),max=Math.max(...vals);if(min===max){min-=1;max+=1;}const pad=(max-min)*.12;min-=pad;max+=pad;
+ const first=Date.parse(rows[0].timestamp),last=Date.parse(rows.at(-1).timestamp);
+ const add=(tag,attrs,txt)=>{const el=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));if(txt!==undefined)el.textContent=txt;svg.append(el);return el;};
+ for(let i=0;i<=3;i++){const y=20+i*58;add('line',{x1:48,x2:780,y1:y,y2:y,stroke:'#35432f'});add('text',{x:1,y:y+4},(max-i*(max-min)/3).toFixed(1));}
+ let segment=[],prev=null;const flush=()=>{if(!segment.length)return;if(segment.length===1)add('circle',{cx:segment[0][0],cy:segment[0][1],r:4,fill:'#ff7a24'});else add('polyline',{points:segment.map(p=>p.join(',')).join(' '),fill:'none',stroke:'#ff7a24','stroke-width':2.5,'stroke-linejoin':'round'});segment=[];};
+ for(const row of rows){const at=Date.parse(row.timestamp),n=Number(row.value);if(prev!==null&&at-prev>10*60*1000)flush();const x=48+(at-first)/Math.max(1,last-first)*732,y=20+(max-n)/(max-min)*174;segment.push([x,y]);prev=at;}flush();
+ add('text',{x:48,y:220},new Date(first).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}));
+ add('text',{x:780,y:220,'text-anchor':'end'},new Date(last).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}));
+ host.append(svg);
+}
 function renderNibeCards(){
  const host=$('thermal-cards');if(!host)return;
  if(!nibePoints.length){
@@ -73,6 +88,8 @@ async function refreshMyUplink(){
    if(!pr.ok){systemsEl.textContent+=' Device points could not be loaded: '+(pointResult.error||'HTTP '+pr.status)+'.';return;}
    const devices=pointResult.devices||[],all=devices.flatMap(d=>(d.points||[]).map(p=>({...p,deviceName:d.deviceName||d.productName||'NIBE'})));
    nibePoints=all;nibePointUpdated=new Date().toISOString();
+   const hr=await fetch('./api/myuplink/history?hours=720',{cache:'no-store'});
+   if(hr.ok){const saved=await hr.json();nibeHistoryRows=Array.isArray(saved.samples)?saved.samples:[];}
    systemsEl.textContent+=' Found '+devices.length+' device(s) and '+all.length+' available data point(s).';
    if(pointResult.diagnostics?.length)systemsEl.textContent+=' Details: '+pointResult.diagnostics.map(d=>(d.deviceName||d.systemName||d.stage)+': '+d.error).join(' | ');
    renderNibeCards();
@@ -220,15 +237,13 @@ function render(){
   }else chart('energy-chart',['solar','siteLoad'],subset(Number($('overview-range').value)));
  }
  if(view==='thermal'){
-  if(live){
-   for(const id of ['thermal-chart','compressor-chart']){
-    const el=$(id);el.replaceChildren();
-    const empty=document.createElement('div');empty.className='empty';
-    empty.textContent='NIBE readings are not connected yet.';el.append(empty);
-   }
+  if(nibeHistoryRows.length){
+   renderNibeHistoryChart('thermal-chart',/\\(BT7\\)|varmvatten topp/i,'Hot-water temperature','°C');
+   renderNibeHistoryChart('compressor-chart',/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,'Compressor activity','Hz');
+  }else if(live){
+   for(const id of ['thermal-chart','compressor-chart']){const el=$(id);el.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent='Waiting for locally stored NIBE readings.';el.append(empty);}
   }else{
-   chart('thermal-chart',['hotWater'],subset());
-   chart('compressor-chart',['compressor'],subset());
+   chart('thermal-chart',['hotWater'],subset());chart('compressor-chart',['compressor'],subset());
   }
  }
  if(view==='history'){
