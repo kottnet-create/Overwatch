@@ -104,7 +104,7 @@ Avoid claiming battery or solar "profit" without a stated counterfactual and ver
 - Whether the FusionSolar company administrator/installer can create a Northbound API account and enable the required read-only plant/device data capabilities.
 - Whether Emaldo provides a supported customer/partner API or export for the Power Store.
 - Ask Zaptec whether they can provision a dedicated API UserGroup/service account for the private read-only Overwatch integration; separate portal user “Overwatch Zaptec” is active and has User + Owner roles on Immesstad 607.
-- Verify the F1255 points response and match exact parameter IDs/names/units for key readings; then add time-series history, alarms and firmware information using GET endpoints only.
+- F1255 returns 499 public API points. Dashboard now maps live values by their BT labels/names: outdoor temperature, BT2 supply, BT3 return, BT6 hot-water charge, BT7 hot-water top, BT10/BT11 brine in/out and BT12 condenser. Compressor frequency is shown only if a matching public point is found. Next: verify card values against myUplink app, then persist timestamped read-only samples and add history charts; alarms and firmware info remain future GET-only tasks.
 - Whether the Tibber Pulse is connected to the main electricity meter and which grid data fields are available.
 - Electricity supplier, grid operator, tariff, fuse size and export compensation terms.
 - NAS model and supported Node/Docker runtime.
