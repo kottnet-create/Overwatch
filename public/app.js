@@ -40,11 +40,13 @@ async function refreshTibber(){
    const when=new Date(live.timestamp).toLocaleString();
    detail.textContent=(status.homeName||'Tibber home')+' · Measurement '+when+' · '+(status.stale?'Latest reading is older than 3 minutes.':'Live data received.')+' Saved locally: '+(status.historyCount||0)+' samples at 5-minute intervals. '+(status.historyError||'Other device data is not connected yet.');
   }else detail.textContent=(status.message||'No live measurement received yet.')+' The dashboard demo values below are synthetic and are not your home readings.';
+  render();
  }catch(error){
   tibberLive=null;
   statusEl.className='tibber-state offline';
   statusEl.textContent='UNAVAILABLE';
   detail.textContent='Could not read Tibber status: '+error.message+' Demo cards below are synthetic examples.';
+  render();
  }
 }
 
