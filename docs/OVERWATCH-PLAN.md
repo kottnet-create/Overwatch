@@ -127,3 +127,17 @@ The `/api/cameras` endpoint exposes metadata only. Stream URLs and credentials m
 The selected bridge is go2rtc. It consumes the existing RTSP source and exposes a WebRTC browser player locally. Overwatch displays the player only when `OVERWATCH_GO2RTC_ENABLED=true`; the public camera API never returns the RTSP source or credentials. Sample configuration: `go2rtc.example.yaml`. Keep the real config and environment credentials local and untracked.
 
 The existing UniFi exception is only RTSP TCP 554 from 192.168.1.218 to 192.168.20.137. go2rtc WebRTC also requires the browser to reach the local PC service (default HTTP TCP 1984 and media TCP/UDP 8555); these are local-host ports. Check Windows Firewall and go2rtc candidates if WebRTC fails. Do not add another IoT VLAN exception without testing. Browser playback is wired to the documented go2rtc stream viewer but is not yet verified end-to-end. PTZ/ONVIF remains a separate later step.
+
+## Future always-on host and TV dashboard
+
+The current Windows PC is the development and interim runtime environment; it is normally powered off and should not be treated as the permanent always-on host. After the currently planned Overwatch features are implemented and validated, evaluate moving the service to a dedicated low-power always-on host.
+
+- Initial target to evaluate: Raspberry Pi 4 or Raspberry Pi 5. Choose the final model/RAM and storage only after checking the actual workload, especially simultaneous camera streaming, data collection and database writes.
+- The user's available Raspberry Pi 1 Model B+ (512 MB, ARMv6) is not a suitable host for the current Node.js 22.5+ application and should not be used for production.
+- Keep the application portable: configuration and credentials outside the repository, persistent application data separated from code, documented startup/service setup, and a tested backup/restore procedure.
+- Keep the active SQLite database on reliable local storage on the host. Use the ReadyNAS as temporary network file storage and backup target, not as the live SQLite database location.
+- The ReadyNAS NV+ v2 is an interim device only. Restrict its network access, expose no NAS services directly to the internet, and give Overwatch a dedicated non-admin SMB account with access only to required shares. Treat its ageing disks as untrusted until extended SMART tests and RAID health checks complete; maintain a separate backup.
+- Reassess the best always-on platform before purchase. A newer Raspberry Pi, small x86 mini-PC, or another suitable platform may be preferable depending on the final camera and integration workload. No hardware purchase is committed yet.
+- Future display goal: use a Fire TV Stick or other thin client to open a TV-optimized Overwatch dashboard from the always-on host. This is deferred until the existing core features are complete. The TV client should only display the dashboard; server-side integrations and credentials remain on the host.
+- Remote access should be provided through the UniFi VPN (for example WireGuard/Teleport) with narrowly scoped network access, not by exposing the NAS or the local Overwatch server directly to the public internet.
+
