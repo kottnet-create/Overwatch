@@ -120,3 +120,10 @@ The camera UI is configuration-driven. The home overview contains compact camera
 | Tapo C460 | Outdoor | Integration pending. Battery camera; local RTSP/ONVIF support has not been verified. |
 
 The `/api/cameras` endpoint exposes metadata only. Stream URLs and credentials must remain server-side in local environment configuration and must never be returned to browser code. Add future cameras to `cameras.mjs`. This is UI/status scaffolding, not working browser live video or PTZ.
+
+
+### C520WS browser playback bridge
+
+The selected bridge is go2rtc. It consumes the existing RTSP source and exposes a WebRTC browser player locally. Overwatch displays the player only when `OVERWATCH_GO2RTC_ENABLED=true`; the public camera API never returns the RTSP source or credentials. Sample configuration: `go2rtc.example.yaml`. Keep the real config and environment credentials local and untracked.
+
+The existing UniFi exception is only RTSP TCP 554 from 192.168.1.218 to 192.168.20.137. go2rtc WebRTC also requires the browser to reach the local PC service (default HTTP TCP 1984 and media TCP/UDP 8555); these are local-host ports. Check Windows Firewall and go2rtc candidates if WebRTC fails. Do not add another IoT VLAN exception without testing. Browser playback is wired to the documented go2rtc stream viewer but is not yet verified end-to-end. PTZ/ONVIF remains a separate later step.
