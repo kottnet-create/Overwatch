@@ -150,3 +150,16 @@ See [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). The
 ## Camera overview
 
 Overwatch includes a configuration-driven camera overview and a dedicated Cameras page. Camera metadata is served by the local `/api/cameras` endpoint. RTSP URLs and credentials are not sent to browser code. The garage Tapo C520WS stream was verified in VLC, but browser playback still requires a local RTSP-to-WebRTC/HLS bridge. The outdoor Tapo C460 is listed as integration pending. PTZ controls are not enabled until ONVIF support and required ports are verified. See [docs/OVERWATCH-PLAN.md](docs/OVERWATCH-PLAN.md).
+
+
+## Browser camera streaming (go2rtc)
+
+The garage Tapo C520WS can be bridged from RTSP to browser WebRTC with [go2rtc](https://github.com/AlexxIT/go2rtc). The app displays the local player URL only; RTSP credentials stay in local go2rtc configuration/environment. The bridge is disabled until `OVERWATCH_GO2RTC_ENABLED=true`.
+
+1. Download the Windows go2rtc release from the official [go2rtc releases](https://github.com/AlexxIT/go2rtc/releases).
+2. Place `go2rtc.exe` in a private local folder, not in the Git repository.
+3. Create a local `go2rtc.yaml` from `go2rtc.example.yaml`. Set `TAPO_RTSP_USER` and `TAPO_RTSP_PASSWORD` in the environment used to start go2rtc. Keep the real config private.
+4. Start go2rtc, then set `OVERWATCH_GO2RTC_ENABLED=true` in Overwatch's local `.env` and restart Overwatch.
+5. Check go2rtc at `http://127.0.0.1:1984` and test stream `overwatch_garage`.
+
+The existing UniFi rule allows RTSP TCP 554 from the PC to the camera. WebRTC also needs the browser to reach go2rtc on the same PC (default HTTP TCP 1984 and media TCP/UDP 8555). These are local PC ports, not additional camera VLAN openings. If playback fails, inspect go2rtc WebRTC candidates and Windows Firewall; do not broaden the IoT rule. The iframe uses go2rtc's documented `stream.html?src=...&mode=webrtc` viewer. End-to-end playback has not yet been tested on the user's PC.
