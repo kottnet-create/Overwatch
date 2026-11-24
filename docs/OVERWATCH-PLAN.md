@@ -14,7 +14,7 @@ Build a local-first dashboard that combines the user's own energy systems, prese
 | Emaldo | Home battery charge, discharge and state of charge | Product confirmed: Power Store, 3 battery modules, 15.36 kWh total storage capacity. Owner describes system as 15 kW; official product information lists up to 10.8 kW charge/discharge. Customer API/access method still unconfirmed |
 | Tibber + Tibber Pulse | Grid import/export, live power, consumption history and electricity prices | Official Tibber APIs available; confirm scopes and available fields for this account |
 | Zaptec | EV charger state, charging sessions and energy | Charger confirmed: Zaptec Go. Official Zaptec Cloud REST API verified. Current developer guide says API access requires an owner/service UserGroup and access requested through Zaptec country representative or Support; current documented token flow is OAuth 2.0 password grant, planned to transition to authorization-code grant. Portal visibility alone does not confirm API access. Read-only integration must use GET endpoints only |
-| myUplink / NIBE F1255 | Heat-pump measurements and, if exposed, software/version information | Official myUplink API available; verify exact points and account access. Overwatch integration is read-only |
+| myUplink / NIBE F1255 | Heat-pump measurements and, if exposed, software/version information | Official public myUplink v2 API and OAuth endpoints verified. GET endpoints expose systems, devices, parameter points, alarms and firmware info; API also has write endpoints, so Overwatch must request READSYSTEM only and implement GET-only calls. Exact F1255 points and account access remain to be verified |
 
 ## Architecture principles
 
@@ -104,7 +104,7 @@ Avoid claiming battery or solar "profit" without a stated counterfactual and ver
 - Whether the FusionSolar company administrator/installer can create a Northbound API account and enable the required read-only plant/device data capabilities.
 - Whether Emaldo provides a supported customer/partner API or export for the Power Store.
 - Ask Zaptec whether they can provision a dedicated API UserGroup/service account for the private read-only Overwatch integration; separate portal user “Overwatch Zaptec” is active and has User + Owner roles on Immesstad 607.
-- NIBE F1255 firmware version and which measurement/software information points are exposed to this myUplink account.
+- Register a myUplink developer OAuth application and verify the F1255's available read-only parameter points, firmware information and account permissions.
 - Whether the Tibber Pulse is connected to the main electricity meter and which grid data fields are available.
 - Electricity supplier, grid operator, tariff, fuse size and export compensation terms.
 - NAS model and supported Node/Docker runtime.
