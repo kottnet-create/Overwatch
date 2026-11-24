@@ -57,6 +57,23 @@ export function createMyUplink({root=process.cwd(),fetchImpl=fetch}={}) {
   },
   status(send){const t=readTokens();return json(send,200,{connected:Boolean(t?.access_token),provider:'myUplink',readOnly:true,scope:'READSYSTEM',message:t?.access_token?'myUplink account connected.':'Connect your myUplink account to begin.'});},
   async systems(send){try{const data=await apiGet('/v2/systems/me');return json(send,200,{connected:true,readOnly:true,data});}catch(e){return json(send,readTokens()?.access_token?502:401,{connected:false,readOnly:true,error:e.message});}},
+  async points(send){
+   try{
+    const response=await apiGet('/v2/systems/me');
+    const systems=Array.isArray(response)?response:(response.systems||response.items||[]);
+    const results=[];
+    for(const system of systems){
+     let devices=system.devices||[];
+     if(!devices.length&&system.id){const detail=await apiGet('/v2/systems/'+encodeURIComponent(system.id));devices=detail.devices||detail.systemDevices||[];}
+     for(const device of devices){
+      if(!device.id)continue;
+      const points=await apiGet('/v2/devices/'+encodeURIComponent(device.id)+'/points');
+      results.push({systemId:system.id,systemName:system.name||system.systemName,deviceId:device.id,deviceName:device.name||device.deviceName||device.productName,productName:device.productName||device.product,points:Array.isArray(points)?points:[]});
+     }
+    }
+    return json(send,200,{connected:true,readOnly:true,deviceCount:results.length,devices:results});
+   }catch(e){return json(send,readTokens()?.access_token?502:401,{connected:false,readOnly:true,error:e.message});}
+  },
   close(){pendingState=null;}
  };
 }
