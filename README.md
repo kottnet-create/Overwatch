@@ -40,7 +40,7 @@ See [the data format](docs/DATA-FORMAT.md) to make a file with your own readings
 
 ## Optional local server
 
-Install [Node.js LTS](https://nodejs.org/en/download) (Node 22 or later). Open a terminal **inside the extracted starter folder**, the one containing `package.json`:
+Install [Node.js LTS](https://nodejs.org/en/download) (Node 22.5 or later; the app uses Node's built-in SQLite support). Open a terminal **inside the extracted starter folder**, the one containing `package.json`:
 
 ```sh
 node server.mjs
@@ -84,6 +84,15 @@ To move from synthetic data to your own adapter:
 5. Open the dashboard and load the local recorder.
 
 The recorder only reads that local file. Building the connection between your equipment and that file is a separate step. See [connections and Homey](docs/CONNECTIONS.md).
+
+
+### NIBE history (local SQLite)
+
+When the local server is started with the myUplink credentials configured, it collects read-only NIBE device points immediately and then every five minutes. Measurements are stored in `data/overwatch.sqlite`; the database is local and excluded from Git. The recorder keeps 30 days of samples and prunes older rows automatically. It stores the polling timestamp as well as the source timestamp, so unchanged readings still appear in the time series without losing when myUplink last updated the point.
+
+The database location can be changed with `OVERWATCH_DB_PATH` in `.env`, for example `OVERWATCH_DB_PATH=D:/OverwatchData/overwatch.sqlite`. Use a persistent local disk path for now. When moving to a NAS later, stop the server first and move the database together with its SQLite WAL/SHM files (or use SQLite's backup/checkpoint procedure); then update the path. Do not place the live database on an unreliable network share.
+
+The history API is local-only: `/api/myuplink/history?hours=24` (up to 720 hours) and `/api/myuplink/history/latest`.
 
 ## Make it look like your home
 
