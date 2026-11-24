@@ -7,6 +7,7 @@ import {createTibberMonitor} from './tibber.mjs';
 import {createNordPoolPrices} from './nordpool-prices.mjs';
 import {createMyUplink} from './myuplink.mjs';
 import {createNibeHistory} from './nibe-history.mjs';
+import {getPublicCameras} from './cameras.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const routes={'/':'index.html','/index.html':'index.html','/style.css':'style.css','/app.js':'app.js','/model.js':'model.js','/config.js':'config.js','/assets/starter-house.svg':'assets/starter-house.svg'};
 export function createServer({historyFile=path.join(root,'data/history.json'),tibberMonitor=createTibberMonitor(),nordPoolPrices=createNordPoolPrices(),myUplink=createMyUplink({root}),nibeHistory=createNibeHistory({dbPath:process.env.OVERWATCH_DB_PATH?path.resolve(root,process.env.OVERWATCH_DB_PATH):path.join(root,'data','overwatch.sqlite')}),autoCollect=false}={}){
@@ -15,6 +16,7 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   if(!/^(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(req.headers.host||''))return send(403,'Local host only.');
   if(!['GET','HEAD'].includes(req.method))return send(405,'Read-only server.');
   let route;try{route=new URL(req.url,'http://localhost').pathname;}catch{return send(400,'Bad request.');}
+  if(route==='/api/cameras')return send(200,JSON.stringify({cameras:getPublicCameras()}),'application/json');
   if(route==='/api/myuplink/connect')return myUplink.connect(req,res,send);
   if(route==='/api/myuplink/callback')return myUplink.callback(req,res,send);
   if(route==='/api/myuplink/status')return myUplink.status(send);
