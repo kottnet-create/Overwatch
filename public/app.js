@@ -88,6 +88,15 @@ function renderNibeCards(){
  host.replaceChildren(...points.map(makeNibeCard));
 }
 
+function wireNibeSpecialHistoryCards(){
+ const specs=[{id:'thermal-chart',pattern:/\\(BT7\\)|varmvatten topp/i,label:'Hot-water temperature'},{id:'compressor-chart',pattern:/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,label:'Compressor activity'}];
+ for(const spec of specs){const host=$(spec.id),panel=host?.closest('.chart-card');if(!panel)continue;const point=nibePoints.find(p=>spec.pattern.test(String(p.parameterName||p.name||'')));if(!point)continue;
+  const pid=String(point.parameterId??point.id??point.parameterName??point.name),unit=String(point.parameterUnit||point.unit||'');
+  panel.classList.add('nibe-click-card','nibe-special-card');panel.tabIndex=0;panel.setAttribute('role','button');panel.setAttribute('aria-label','Show history for '+spec.label);
+  if(!panel.querySelector('.nibe-hover-preview')){const preview=document.createElement('div');preview.className='nibe-hover-preview';const rows=nibeRowsFor(pid,spec.label);preview.innerHTML=rows.length?nibeSparkline(rows):'<span>No local history yet</span>';const caption=document.createElement('small');caption.textContent=rows.length?rows.length+' saved samples · click for details':'History starts collecting locally';preview.append(caption);panel.append(preview);}
+  panel.onclick=()=>drawNibeDialog(pid,spec.label,unit);panel.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();drawNibeDialog(pid,spec.label,unit);}};
+ }
+}
 async function refreshMyUplink(){
  const statusEl=$('myuplink-status'),detail=$('myuplink-detail'),systemsEl=$('myuplink-systems'),connect=$('myuplink-connect');
  if(!statusEl||!detail||!systemsEl)return;
@@ -263,6 +272,7 @@ function render(){
   if(nibeHistoryRows.length){
    renderNibeHistoryChart('thermal-chart',/\\(BT7\\)|varmvatten topp/i,'Hot-water temperature','°C');
    renderNibeHistoryChart('compressor-chart',/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,'Compressor activity','Hz');
+   wireNibeSpecialHistoryCards();
   }else if(live){
    for(const id of ['thermal-chart','compressor-chart']){const el=$(id);el.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent='Waiting for locally stored NIBE readings.';el.append(empty);}
   }else{
