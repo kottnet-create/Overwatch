@@ -11,7 +11,7 @@ Build a local-first dashboard that combines the user's own energy systems, prese
 | Source | Intended responsibility | Integration status |
 | --- | --- | --- |
 | Huawei FusionSolar | PV generation | Investigate Northbound API access and account/installer permissions |
-| Emaldo | Home battery charge, discharge and state of charge | API/access method not yet confirmed; ask Emaldo support before choosing an integration |
+| Emaldo | Home battery charge, discharge and state of charge | Product confirmed: Power Store, described by owner as 15 kW. Official product information lists up to 15.36 kWh capacity and 10.8 kW charge/discharge; customer API/access method still unconfirmed |
 | Tibber + Tibber Pulse | Grid import/export, live power, consumption history and electricity prices | Official Tibber APIs available; confirm scopes and available fields for this account |
 | Zaptec | EV charger state, charging sessions and energy | Official Zaptec API available; start read-only |
 | myUplink / NIBE F1255 | Heat-pump measurements and, if exposed, software/version information | Official myUplink API available; verify exact points and account access. Overwatch integration is read-only |
@@ -102,7 +102,7 @@ Avoid claiming battery or solar "profit" without a stated counterfactual and ver
 ## Open questions
 
 - Whether the FusionSolar company administrator/installer can create a Northbound API account and enable the required read-only plant/device data capabilities.
-- Emaldo product model and whether Emaldo provides a supported customer/partner API or export.
+- Exact installed Emaldo Power Store battery capacity / number of battery boxes, and whether Emaldo provides a supported customer/partner API or export.
 - Zaptec charger model.
 - NIBE F1255 firmware version and which measurement/software information points are exposed to this myUplink account.
 - Whether the Tibber Pulse is connected to the main electricity meter and which grid data fields are available.
