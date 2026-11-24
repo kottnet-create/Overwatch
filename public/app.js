@@ -284,13 +284,12 @@ function render(){
  }
  if(view==='thermal'){
   if(nibeHistoryRows.length){
-   renderNibeHistoryChart('thermal-chart',/\\(BT7\\)|varmvatten topp/i,'Hot-water temperature','°C');
    renderNibeHistoryChart('compressor-chart',/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,'Compressor activity','Hz');
    wireNibeSpecialHistoryCards();
   }else if(live){
-   for(const id of ['thermal-chart','compressor-chart']){const el=$(id);el.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent='Waiting for locally stored NIBE readings.';el.append(empty);}
+   for(const id of ['compressor-chart']){const el=$(id);el.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent='Waiting for locally stored NIBE readings.';el.append(empty);}
   }else{
-   chart('thermal-chart',['hotWater'],subset());chart('compressor-chart',['compressor'],subset());
+   chart('compressor-chart',['compressor'],subset());
   }
  }
  if(view==='history'){
