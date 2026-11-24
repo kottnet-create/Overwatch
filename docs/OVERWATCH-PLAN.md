@@ -13,7 +13,7 @@ Build a local-first dashboard that combines the user's own energy systems, prese
 | Huawei FusionSolar | PV generation | Investigate Northbound API access and account/installer permissions |
 | Emaldo | Home battery charge, discharge and state of charge | Product confirmed: Power Store, 3 battery modules, 15.36 kWh total storage capacity. Owner describes system as 15 kW; official product information lists up to 10.8 kW charge/discharge. Customer API/access method still unconfirmed |
 | Tibber + Tibber Pulse | Grid import/export, live power, consumption history and electricity prices | Official Tibber APIs available; confirm scopes and available fields for this account |
-| Zaptec | EV charger state, charging sessions and energy | Official Zaptec Cloud REST API and developer documentation verified; OAuth 2.0; account must have installation/charger permissions. Start read-only and avoid deprecated endpoints |
+| Zaptec | EV charger state, charging sessions and energy | Charger confirmed: Zaptec Go. Official Zaptec Cloud REST API and developer documentation verified; OAuth 2.0; account must have installation/charger permissions. Start read-only and avoid deprecated endpoints |
 | myUplink / NIBE F1255 | Heat-pump measurements and, if exposed, software/version information | Official myUplink API available; verify exact points and account access. Overwatch integration is read-only |
 
 ## Architecture principles
@@ -103,7 +103,7 @@ Avoid claiming battery or solar "profit" without a stated counterfactual and ver
 
 - Whether the FusionSolar company administrator/installer can create a Northbound API account and enable the required read-only plant/device data capabilities.
 - Whether Emaldo provides a supported customer/partner API or export for the Power Store.
-- Zaptec charger model.
+- Confirm Zaptec Go installation is visible to the user's Zaptec account and determine which OAuth/API access path is available for a private read-only integration.
 - NIBE F1255 firmware version and which measurement/software information points are exposed to this myUplink account.
 - Whether the Tibber Pulse is connected to the main electricity meter and which grid data fields are available.
 - Electricity supplier, grid operator, tariff, fuse size and export compensation terms.
