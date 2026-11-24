@@ -32,9 +32,15 @@ export function createMyUplink({root=process.cwd(),fetchImpl=fetch}={}) {
  }
  async function apiGet(route){
   const token=await accessToken(),response=await fetchImpl(API+route,{headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
-  if(response.status===401){clearTokens();throw new Error('Authorization expired. Reconnect myUplink.');}
-  if(!response.ok)throw new Error('myUplink API HTTP '+response.status);
-  return response.json();
+  const raw=await response.text();
+  let body=null;try{body=raw?JSON.parse(raw):null;}catch{body=null;}
+  if(response.status===401){clearTokens();throw new Error('HTTP 401 at '+route+': authorization expired. Reconnect myUplink.');}
+  if(!response.ok){
+   const detail=body?.message||body?.error_description||body?.error||body?.title||(raw?raw.slice(0,300):'No error details');
+   throw new Error('HTTP '+response.status+' at '+route+': '+String(detail).replace(/[<>]/g,''));
+  }
+  if(body===null)throw new Error('Invalid JSON response at '+route);
+  return body;
  }
  return {
   connect(req,res,send){
@@ -61,17 +67,26 @@ export function createMyUplink({root=process.cwd(),fetchImpl=fetch}={}) {
    try{
     const response=await apiGet('/v2/systems/me');
     const systems=Array.isArray(response)?response:(response.systems||response.items||[]);
-    const results=[];
+    const results=[],diagnostics=[];
     for(const system of systems){
-     let devices=system.devices||[];
-     if(!devices.length&&system.id){const detail=await apiGet('/v2/systems/'+encodeURIComponent(system.id));devices=detail.devices||detail.systemDevices||[];}
+     if(!system.id){diagnostics.push({systemName:system.name||'Unknown',error:'System response did not contain an id.'});continue;}
+     let detail;
+     try{detail=await apiGet('/v2/systems/'+encodeURIComponent(system.id));}
+     catch(e){diagnostics.push({systemName:system.name||'Unknown',stage:'system details',error:e.message});continue;}
+     const devices=detail.devices||detail.systemDevices||system.devices||[];
+     if(!devices.length)diagnostics.push({systemName:system.name||detail.name||'Unknown',stage:'device discovery',error:'No devices were listed in the system details response.'});
      for(const device of devices){
-      if(!device.id)continue;
-      const points=await apiGet('/v2/devices/'+encodeURIComponent(device.id)+'/points');
-      results.push({systemId:system.id,systemName:system.name||system.systemName,deviceId:device.id,deviceName:device.name||device.deviceName||device.productName,productName:device.productName||device.product,points:Array.isArray(points)?points:[]});
+      const deviceId=device.id||device.deviceId;
+      if(!deviceId){diagnostics.push({deviceName:device.name||'Unknown',stage:'device discovery',error:'Device response did not contain an id.'});continue;}
+      const deviceName=device.name||device.deviceName||device.productName||'NIBE device';
+      try{
+       const info=await apiGet('/v2/devices/'+encodeURIComponent(deviceId));
+       const points=await apiGet('/v2/devices/'+encodeURIComponent(deviceId)+'/points');
+       results.push({systemId:system.id,systemName:system.name||detail.name,deviceId,deviceName:info.name||info.deviceName||deviceName,productName:info.productName||device.productName,points:Array.isArray(points)?points:[]});
+      }catch(e){diagnostics.push({deviceName,deviceId,stage:'device points',error:e.message});}
      }
     }
-    return json(send,200,{connected:true,readOnly:true,deviceCount:results.length,devices:results});
+    return json(send,200,{connected:true,readOnly:true,deviceCount:results.length,devices:results,diagnostics});
    }catch(e){return json(send,readTokens()?.access_token?502:401,{connected:false,readOnly:true,error:e.message});}
   },
   close(){pendingState=null;}
