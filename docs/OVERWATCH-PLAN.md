@@ -103,7 +103,7 @@ Avoid claiming battery or solar "profit" without a stated counterfactual and ver
 
 - Whether the FusionSolar company administrator/installer can create a Northbound API account and enable the required read-only plant/device data capabilities.
 - Whether Emaldo provides a supported customer/partner API or export for the Power Store.
-- Ask Zaptec whether they can provision an owner/service UserGroup or supported API access for a private read-only Overwatch integration, and confirm the current authentication onboarding path.
+- Ask Zaptec whether they can provision a dedicated API UserGroup/service account for the private read-only Overwatch integration; separate portal user “Overwatch Zaptec” already has User + Owner roles on Immesstad 607.
 - NIBE F1255 firmware version and which measurement/software information points are exposed to this myUplink account.
 - Whether the Tibber Pulse is connected to the main electricity meter and which grid data fields are available.
 - Electricity supplier, grid operator, tariff, fuse size and export compensation terms.
