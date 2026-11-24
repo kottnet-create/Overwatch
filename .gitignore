@@ -6,3 +6,6 @@ data/
 release/*.zip
 release/*.sha256
 release/verification.json
+
+# Private camera bridge configuration and credentials
+go2rtc.yaml
