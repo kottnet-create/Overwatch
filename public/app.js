@@ -7,7 +7,7 @@ const value=(n,unit='W')=>Number.isFinite(n)?(unit==='W'?(n/1000).toFixed(2):uni
 const unitLabel=unit=>unit==='W'?'kW':unit;
 const powerDisplay=n=>Number.isFinite(n)?(Math.abs(n)<1000?Math.round(n)+' W':(n/1000).toFixed(2)+' kW'):'—';
 function message(s){text('message',s);}
-function show(next){view=['overview','thermal','history','connect'].includes(next)?next:'overview';document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!==view);document.querySelectorAll('[data-view]').forEach(b=>{if(b.dataset.view===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});text('page-title',({overview:C.title||'Home, in view.',thermal:'Heating, understood.',history:'A little perspective.',connect:'Make it yours.'})[view]);render();}
+function show(next){view=['overview','thermal','history','connections','connect'].includes(next)?next:'overview';document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!==view);document.querySelectorAll('[data-view]').forEach(b=>{if(b.dataset.view===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});text('page-title',({overview:C.title||'Home, in view.',thermal:'Heating, understood.',history:'A little perspective.',connections:'Your connected systems.',connect:'Make it yours.'})[view]);render();}
 function card(label,n,unit,note,kind='') {const el=document.createElement('article');el.className='card energy-card '+kind;const l=document.createElement('div');l.className='label';l.textContent=label;const r=document.createElement('div');r.className='reading';r.textContent=unit==='W'?powerDisplay(n):value(n,unit);if(unit!=='W'){const u=document.createElement('small');u.textContent=unitLabel(unit);r.append(u);}const p=document.createElement('p');p.textContent=note;el.append(l,r,p);return el;}
 function subset(hours=24){const to=Date.parse(data.samples.at(-1).at);return data.samples.filter(s=>Date.parse(s.at)>=to-hours*3600000);}
 function chart(id,keys,samples){const el=$(id);el.replaceChildren();const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label',keys.map(k=>M.metrics[k].label).join(' and ')+' over time');
@@ -215,6 +215,11 @@ function renderPriceChart(){
  chartEl.replaceChildren(svg);
  detail.textContent='Elområde SE3 · Nord Pool spotpris · '+rows.length+' tillgängliga kvartsvärden · uppdaterad '+(p.fetchedAt?new Date(p.fetchedAt).toLocaleString():'okänt')+'. Priset visas i öre/kWh, exklusive moms, Bixias påslag, energiskatt och nätavgifter. Källa: Spotpris.nu.';
 }
+function renderConnectionStatus(){
+ const target=$('connection-tibber-status'),detail=$('connection-tibber-detail');
+ if(target){const live=Boolean(tibberLive&&tibberLive.latest);target.className='tibber-state'+(live?' online':' offline');target.textContent=live?'CONNECTED · LIVE':'NOT CONNECTED';}
+ if(detail)detail.textContent=$('tibber-detail')?.textContent||'Waiting for Tibber status.';
+}
 function render(){
  const latest=M.latest(data),v=latest.values,stale=M.age(data)>90000;
  const live=Boolean(tibberLive&&tibberLive.latest);
@@ -227,6 +232,7 @@ function render(){
  text('scene-source',live?'LIVE TIBBER DATA':mode==='demo'?'SAMPLE HOME':'YOUR IMPORTED READINGS');
  text('subtitle',C.subtitle||'One place to understand your home.');
  renderPriceChart();
+ renderConnectionStatus();
  if(live){
   $('energy-cards').replaceChildren(
    card('TIBBER POWER',t.power,'W','Live reading from the main meter.','grid'),
