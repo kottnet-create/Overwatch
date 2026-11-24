@@ -101,7 +101,7 @@ Avoid claiming battery or solar "profit" without a stated counterfactual and ver
 
 ## Open questions
 
-- Exact Huawei inverter model and whether installer/company admin can create a Northbound API account.
+- Whether the FusionSolar company administrator/installer can create a Northbound API account and enable the required read-only plant/device data capabilities.
 - Emaldo product model and whether Emaldo provides a supported customer/partner API or export.
 - Zaptec charger model.
 - NIBE F1255 firmware version and which measurement/software information points are exposed to this myUplink account.
