@@ -163,3 +163,16 @@ The garage Tapo C520WS can be bridged from RTSP to browser WebRTC with [go2rtc](
 5. Check go2rtc at `http://127.0.0.1:1984` and test stream `overwatch_garage`.
 
 The existing UniFi rule allows RTSP TCP 554 from the PC to the camera. WebRTC also needs the browser to reach go2rtc on the same PC (default HTTP TCP 1984 and media TCP/UDP 8555). These are local PC ports, not additional camera VLAN openings. If playback fails, inspect go2rtc WebRTC candidates and Windows Firewall; do not broaden the IoT rule. The iframe uses go2rtc's documented `stream.html?src=...&mode=webrtc` viewer. End-to-end playback has been confirmed working by the user in Overwatch.
+
+
+## Camera PTZ controls (garage Tapo C520WS)
+
+The garage camera's ONVIF pan/tilt and preset save/recall were verified with Agent DVR while the test PC was connected to the IoT network. Overwatch now includes server-side ONVIF control endpoints and a PTZ panel on the garage camera card. The camera account is never sent to the browser.
+
+1. Install the pinned ONVIF dependency from the project folder:
+   `npm install`
+2. Copy the values from `camera-ptz.env.example` into your private local `.env` file. Use the Tapo **Camera Account** (the same local account as RTSP), not the Tapo cloud account. Never commit `.env`.
+3. Ensure the Overwatch host can reach the camera's ONVIF service at `192.168.20.137:2020`. The current successful PTZ test was performed with the PC on the IoT network; cross-VLAN operation from the main LAN still needs verification.
+4. Restart Overwatch. Open the Cameras page and use the garage PTZ arrows or save/recall preset controls.
+
+Movement buttons issue short bounded movements. The API is local-host-only and accepts only same-host browser origins. Presets are stored on the camera itself. Zoom is intentionally not included in this first UI iteration. This integration has not yet been runtime-tested against the user's camera from the Overwatch server; verify one small movement before relying on it.
