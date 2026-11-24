@@ -27,6 +27,14 @@ async function getClient(){
 }
 function cleanPreset(p){return {token:String(p.token||''),name:String(p.name||p.token||'').slice(0,64)};}
 export function getCameraPtzStatus(){return {configured:configured(),camera:'garage-c520ws',protocol:'ONVIF',url:configured()?new URL(url).origin+'/…':null};}
+export async function getCameraPtzDiagnostics(){
+ const client=await getClient();
+ const nodes=await client.ptz.getNodes();
+ const configuration=client.profiles.find(p=>p.token===activeProfile)?.PTZConfiguration;
+ let options=null;
+ if(configuration?.token)options=await client.ptz.getConfigurationOptions({configurationToken:configuration.token});
+ return {profileToken:activeProfile,configurationToken:configuration?.token||null,nodes:nodes.map(n=>({token:n.token,name:n.name,maximumNumberOfPresets:n.maximumNumberOfPresets,supportedPTZSpaces:n.supportedPTZSpaces})),options};
+}
 export async function listCameraPresets(){
  const client=await getClient();
  const presets=await client.ptz.getPresets({profileToken:activeProfile});
