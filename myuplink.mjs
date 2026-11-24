@@ -31,7 +31,7 @@ export function createMyUplink({root=process.cwd(),fetchImpl=fetch}={}) {
   t={...t,...next,expires_at:Date.now()+Number(next.expires_in||3600)*1000};saveTokens(t);return t.access_token;
  }
  async function apiGet(route){
-  const token=await accessToken(),response=await fetchImpl(API+route,{headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
+  const token=await accessToken(),response=await fetchImpl(API+route,{headers:{Authorization:'Bearer '+token,Accept:'application/json','Accept-Language':process.env.MYUPLINK_LANGUAGE||'sv-SE'}});
   const raw=await response.text();
   let body=null;try{body=raw?JSON.parse(raw):null;}catch{body=null;}
   if(response.status===401){clearTokens();throw new Error('HTTP 401 at '+route+': authorization expired. Reconnect myUplink.');}
