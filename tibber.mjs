@@ -35,6 +35,10 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
   let retryAttempt = 0;
   let lastStoredAt = 0;
   let history = loadHistory();
+  let selectedHomeId = homeId || null;
+  let prices = loadPrices();
+  let priceFetchedAt = prices.fetchedAt ? Date.parse(prices.fetchedAt) : 0;
+  let priceTimer = null;
   lastStoredAt = history.length ? Date.parse(history.at(-1).timestamp) : 0;
   let state = {
     configured: Boolean(token),
@@ -46,6 +50,58 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
   };
 
   const update = patch => { state = { ...state, ...patch }; };
+
+  function loadPrices() {
+    try {
+      const file = path.join(ROOT, 'data', 'tibber-prices.json');
+      if (!fs.existsSync(file)) return { today: [], tomorrow: [], fetchedAt: null, currency: null, error: null };
+      const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+      return { today: Array.isArray(parsed.today) ? parsed.today : [], tomorrow: Array.isArray(parsed.tomorrow) ? parsed.tomorrow : [], fetchedAt: parsed.fetchedAt || null, currency: parsed.currency || null, error: null };
+    } catch { return { today: [], tomorrow: [], fetchedAt: null, currency: null, error: 'Could not read cached price data.' }; }
+  }
+
+  function savePrices() {
+    const file = path.join(ROOT, 'data', 'tibber-prices.json');
+    fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+    const temporary = file + '.tmp';
+    fs.writeFileSync(temporary, JSON.stringify(prices), { mode: 0o600 });
+    fs.renameSync(temporary, file);
+  }
+
+  async function refreshPrices() {
+    if (stopped || !token || !selectedHomeId) return;
+    const now = Date.now();
+    if (priceFetchedAt && now - priceFetchedAt < 20 * 60 * 60 * 1000) return;
+    try {
+      const data = await gql(`query OverwatchPrices($homeId: ID!) {
+        viewer {
+          home(id: $homeId) {
+            currentSubscription {
+              priceInfo(resolution: QUARTER_HOURLY) {
+                today { startsAt total energy tax currency level }
+                tomorrow { startsAt total energy tax currency level }
+              }
+            }
+          }
+        }
+      }`, { homeId: selectedHomeId });
+      const info = data.viewer.home?.currentSubscription?.priceInfo;
+      if (!info) throw new Error('Tibber did not return price information for this subscription.');
+      const normalize = list => (list || []).map(item => ({
+        startsAt: item.startsAt,
+        total: Number.isFinite(item.total) ? item.total : null,
+        energy: Number.isFinite(item.energy) ? item.energy : null,
+        tax: Number.isFinite(item.tax) ? item.tax : null,
+        currency: item.currency || null,
+        level: item.level || null,
+      })).filter(item => Number.isFinite(Date.parse(item.startsAt)));
+      prices = { today: normalize(info.today), tomorrow: normalize(info.tomorrow), fetchedAt: new Date().toISOString(), currency: info.today?.[0]?.currency || info.tomorrow?.[0]?.currency || null, error: null };
+      priceFetchedAt = Date.now();
+      savePrices();
+    } catch (error) {
+      prices.error = error.message;
+    }
+  }
 
   function loadHistory() {
     try {
@@ -118,6 +174,10 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
         update({ status: 'needs_home', message });
         return;
       }
+      selectedHomeId = selected.id;
+      refreshPrices();
+      priceTimer = setInterval(refreshPrices, 60 * 60 * 1000);
+      priceTimer.unref?.();
       const url = data.viewer.websocketSubscriptionUrl;
       if (!url || !url.startsWith('wss://')) throw new Error('Tibber did not provide a secure WebSocket URL.');
       openSocket(url, selected);
@@ -237,8 +297,13 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
     getHistory() {
       return { source: 'Tibber Pulse', intervalMinutes: 5, samples: history };
     },
+    getPrices() {
+      return { ...prices, stale: !prices.fetchedAt || Date.now() - Date.parse(prices.fetchedAt) > 26 * 60 * 60 * 1000 };
+    },
     close() {
       stopped = true;
+      if (priceTimer) clearInterval(priceTimer);
+      priceTimer = null;
       if (retryTimer) clearTimeout(retryTimer);
       retryTimer = null;
       if (socket) socket.close(1000, 'Overwatch server stopping');
