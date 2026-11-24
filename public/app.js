@@ -78,7 +78,7 @@ function renderPriceChart(){
   return;
  }
  const rows=[...p.prices].sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt));
- const fmt=n=>Number.isFinite(n)?(n*100).toFixed(2)+' öre/kWh':'—';
+ const fmt=n=>Number.isFinite(n)?Math.round(n*100)+' öre/kWh':'—';
  $('price-current').textContent=fmt(p.current?.priceSekPerKwh);
  const vals=rows.map(x=>x.priceSekPerKwh).filter(Number.isFinite);
  $('price-low').textContent=fmt(p.lowest?.priceSekPerKwh??Math.min(...vals));
