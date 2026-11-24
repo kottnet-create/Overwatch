@@ -42,9 +42,11 @@ export async function listCameraPresets(){
 }
 export async function moveCamera(direction){
  const vectors={left:{x:-0.45,y:0,zoom:0},right:{x:0.45,y:0,zoom:0},up:{x:0,y:0.45,zoom:0},down:{x:0,y:-0.45,zoom:0}};
- const velocity=vectors[direction];if(!velocity)throw new Error('Unsupported camera direction.');
+ const vector=vectors[direction];if(!vector)throw new Error('Unsupported camera direction.');
  const client=await getClient();
- await client.ptz.continuousMove({profileToken:activeProfile,velocity,timeout:'PT0.6S'});
+ // The onvif package PTZ API expects scalar x/y/zoom values, not a nested velocity object.
+ // This camera advertises continuous Pan/Tilt but no continuous Zoom space.
+ await client.ptz.continuousMove({profileToken:activeProfile,x:vector.x,y:vector.y,timeout:600,onlySendPanTilt:true});
  return {ok:true};
 }
 export async function stopCamera(){
@@ -54,8 +56,8 @@ export async function saveCameraPreset(name){
  const label=String(name||'').trim();
  if(!label||label.length>32)throw new Error('Preset name must contain 1–32 characters.');
  const client=await getClient();
- const token=await client.ptz.setPreset({profileToken:activeProfile,presetName:label});
- return {token,name:label};
+ const result=await client.ptz.setPreset({profileToken:activeProfile,presetName:label});
+ return {result,name:label};
 }
 export async function gotoCameraPreset(token){
  const value=String(token||'');if(!value||value.length>256)throw new Error('Invalid preset token.');
