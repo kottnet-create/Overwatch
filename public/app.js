@@ -20,6 +20,32 @@ function chart(id,keys,samples){const el=$(id);el.replaceChildren();const ns='ht
  element('text',{x:48,y:220},new Date(first).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));element('text',{x:780,y:220,'text-anchor':'end'},new Date(end).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));el.append(svg);
 }
 
+async function refreshMyUplink(){
+ const statusEl=$('myuplink-status'),detail=$('myuplink-detail'),systemsEl=$('myuplink-systems'),connect=$('myuplink-connect');
+ if(!statusEl||!detail||!systemsEl)return;
+ try{
+  const response=await fetch('./api/myuplink/status',{cache:'no-store'});
+  if(!response.ok)throw new Error('myUplink status HTTP '+response.status);
+  const status=await response.json();
+  statusEl.className='tibber-state'+(status.connected?' online':' offline');
+  statusEl.textContent=status.connected?'CONNECTED':'NOT CONNECTED';
+  detail.textContent=status.connected?'myUplink account linked. Overwatch uses READSYSTEM only and sends GET requests.':'Connect your myUplink account to allow read-only access to the NIBE system.';
+  connect.hidden=Boolean(status.connected);
+  systemsEl.textContent='';
+  if(status.connected){
+   const r=await fetch('./api/myuplink/systems',{cache:'no-store'}),result=await r.json();
+   if(!r.ok)throw new Error(result.error||'Could not read myUplink systems.');
+   const payload=result.data||{},items=Array.isArray(payload)?payload:(payload.items||payload.systems||[]);
+   if(items.length){
+    const names=items.map(x=>x.name||x.systemName||x.title).filter(Boolean);
+    systemsEl.textContent=names.length?'Found '+items.length+' system(s): '+names.join(', '):'Found '+items.length+' myUplink system(s). Device details will be mapped next.';
+   }else systemsEl.textContent='myUplink is connected. The account response was received; system data format needs to be mapped before showing measurements.';
+  }
+ }catch(error){
+  statusEl.className='tibber-state offline';statusEl.textContent='UNAVAILABLE';
+  detail.textContent='Could not check myUplink: '+error.message;
+ }
+}
 async function refreshTibber(){
  const statusEl=$('tibber-status'), detail=$('tibber-detail');
  if(!statusEl||!detail)return;
@@ -198,11 +224,11 @@ function render(){
 }
 for(const [key,m] of Object.entries(M.metrics)){const o=document.createElement('option');o.value=key;o.textContent=m.label;$('metric').append(o)}
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{location.hash=b.dataset.view});document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{location.hash=b.dataset.go});window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
-$('metric').onchange=render;$('overview-range').onchange=render;
+$('metric').onchange=render;$('overview-range').onchange=render;$('myuplink-refresh')?.addEventListener('click',refreshMyUplink);
 $('demo').onclick=()=>{data=M.demo();mode='demo';message('Demo restored. All values are synthetic.');render()};
 $('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>2*1024*1024)throw Error('File too large. Keep it below 2 MB.');const next=M.validate(JSON.parse(await f.text()));data=next;mode='import';message('Imported '+data.samples.length+' samples. They stay in this tab; export to keep a copy.');render()}catch(error){message('Could not import: '+error.message)}finally{e.target.value=''}};
 $('export').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=mode==='demo'?'observatory-synthetic-demo.json':'observatory-readings.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message('Exported the current dataset. Review your own readings before sharing them.');};
 $('recorder').onclick=async()=>{try{if(location.protocol==='file:')throw Error('Start the optional local server with npm start, then open its printed address.');const response=await fetch('./api/history',{cache:'no-store'});if(!response.ok)throw Error('Recorder history is unavailable. Start the included local server and recorder; see README.');const next=M.validate(await response.json());data=next;mode='recorder';message('Loaded local recorder history. Click again to refresh; this is a snapshot.');render()}catch(e){message(e.message)}};
 if(C.illustration && !/^(?:https?:|\/\/|data:|javascript:)/i.test(C.illustration))$('house-art').src=C.illustration;
 $('house-art').onerror=()=>{$('house-art').onerror=null;$('house-art').src='./assets/starter-house.svg';message('Custom artwork was unavailable. Using the included generic illustration.')};
-show(location.hash.slice(1));refreshTibber();setInterval(()=>{if(!document.hidden){render();refreshTibber()}},15000);
+show(location.hash.slice(1));refreshTibber();refreshMyUplink();setInterval(()=>{if(!document.hidden){render();refreshTibber();refreshMyUplink()}},15000);
