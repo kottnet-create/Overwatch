@@ -36,7 +36,7 @@ export function createMyUplink({root=process.cwd(),fetchImpl=fetch}={}) {
   let body=null;try{body=raw?JSON.parse(raw):null;}catch{body=null;}
   if(response.status===401){clearTokens();throw new Error('HTTP 401 at '+route+': authorization expired. Reconnect myUplink.');}
   if(!response.ok){
-   const detail=body?.message||body?.error_description||body?.error||body?.title||(raw?raw.slice(0,300):'No error details');
+   const detail=body?.message||body?.error_description||body?.error||(body?.errors?JSON.stringify(body.errors):null)||body?.title||(raw?raw.slice(0,500):'No error details');
    throw new Error('HTTP '+response.status+' at '+route+': '+String(detail).replace(/[<>]/g,''));
   }
   if(body===null)throw new Error('Invalid JSON response at '+route);
