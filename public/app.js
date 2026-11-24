@@ -1,6 +1,6 @@
 'use strict';
 const M=ObservatoryModel,C=window.OBSERVATORY_CONFIG||{},$=id=>document.getElementById(id);
-let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[];
+let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[],tibberPrices=null;
 const text=(id,value)=>$(id).textContent=value;
 const formatTime=at=>new Date(at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 const value=(n,unit='W')=>Number.isFinite(n)?(unit==='W'?(n/1000).toFixed(2):unit==='%'?Math.round(n):n.toFixed(1)):'—';
@@ -28,6 +28,7 @@ async function refreshTibber(){
   if(!response.ok)throw new Error('Tibber status endpoint returned HTTP '+response.status);
   const status=await response.json(),live=status.latest;tibberLive=(status.status==='connected'&&!status.stale&&live)?status:null;if(tibberLive)mode='live';
   if(status.historyCount!==tibberHistory.length){const historyResponse=await fetch('./api/tibber/history',{cache:'no-store'});if(historyResponse.ok){const saved=await historyResponse.json();tibberHistory=Array.isArray(saved.samples)?saved.samples:[];}}
+  const priceResponse=await fetch('./api/tibber/prices',{cache:'no-store'});if(priceResponse.ok)tibberPrices=await priceResponse.json();
   statusEl.className='tibber-state'+(status.status==='connected'&&!status.stale?' online':' offline');
   statusEl.textContent=status.status==='connected'&&!status.stale?'CONNECTED · LIVE':String(status.status||'UNKNOWN').toUpperCase().replaceAll('_',' ');
   const kw=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n))?powerDisplay(Number(n)):'—';
@@ -63,6 +64,41 @@ function tibberChart(id,samples,hours=24){
  el.append(legend,svg);
 }
 
+function renderPriceChart(){
+ const status=$('price-status'),detail=$('price-detail'),chartEl=$('price-chart');
+ if(!status||!detail||!chartEl)return;
+ const p=tibberPrices;
+ if(!p||!Array.isArray(p.today)||!p.today.length){
+  status.className='tibber-state offline';status.textContent='NO PRICE DATA';
+  $('price-current').textContent='—';$('price-low').textContent='—';$('price-high').textContent='—';
+  chartEl.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent=p?.error||'Waiting for Tibber price information.';chartEl.append(empty);
+  detail.textContent='Price data has not arrived yet. The connection to live Pulse measurements is independent.';
+  return;
+ }
+ const rows=[...p.today].sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt));
+ const now=Date.now(),current=rows.find(x=>now>=Date.parse(x.startsAt)&&now<Date.parse(x.startsAt)+15*60*1000)||rows.find(x=>Date.parse(x.startsAt)<=now&&now<Date.parse(x.startsAt)+60*60*1000);
+ const values=rows.map(x=>x.total).filter(Number.isFinite);
+ const fmt=n=>Number.isFinite(n)?n.toFixed(2)+' '+(p.currency||'SEK')+'/kWh':'—';
+ $('price-current').textContent=fmt(current?.total);
+ $('price-low').textContent=fmt(Math.min(...values));
+ $('price-high').textContent=fmt(Math.max(...values));
+ status.className='tibber-state'+(p.stale?' offline':' online');
+ status.textContent=p.stale?'CACHED · CHECK AGE':'TIBBER PRICES';
+ const tomorrow=Array.isArray(p.tomorrow)?p.tomorrow:[];
+ const points=[...rows,...tomorrow].sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt));
+ const finite=points.filter(x=>Number.isFinite(x.total));
+ if(!finite.length){chartEl.replaceChildren();return;}
+ let min=Math.min(0,...finite.map(x=>x.total)),max=Math.max(...finite.map(x=>x.total));if(min===max)max=min+0.1;const pad=(max-min)*.12;min-=pad;max+=pad;
+ const first=Date.parse(points[0].startsAt),last=Date.parse(points.at(-1).startsAt)+15*60*1000;
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 250');svg.setAttribute('role','img');svg.setAttribute('aria-label','Tibber electricity prices through today and tomorrow');
+ const add=(tag,attrs,txt)=>{const e=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(txt!==undefined)e.textContent=txt;svg.append(e);return e;};
+ for(let i=0;i<=4;i++){const y=20+i*48;add('line',{x1:50,x2:780,y1:y,y2:y,stroke:'#35432f'});add('text',{x:2,y:y+4},(max-i*(max-min)/4).toFixed(2));}
+ for(const key of ['total','energy']){let segment=[],prev=null;const flush=()=>{if(segment.length>1)add('polyline',{points:segment.map(q=>q.join(',')).join(' '),fill:'none',stroke:key==='total'?'#ff7a24':'#63a9d8','stroke-width':key==='total'?3:1.8,'stroke-linejoin':'round'});segment=[];};for(const item of points){const n=item[key],at=Date.parse(item.startsAt);if(!Number.isFinite(n)){flush();prev=null;continue;}if(prev!==null&&at-prev>20*60*1000)flush();segment.push([50+(at-first)/Math.max(1,last-first)*730,20+(max-n)/(max-min)*192]);prev=at;}flush();}
+ const ticks=[0,6,12,18,24,30,36,42];for(const h of ticks){const x=50+h/Math.max(1,(last-first)/3600000)*730;if(x<=780)add('text',{x,y:238,'text-anchor':'middle'},String((new Date(first+h*3600000)).getHours()).padStart(2,'0')+':00');}
+ chartEl.replaceChildren(svg);
+ detail.textContent='Tibber subscription prices · '+rows.length+' periods today'+(tomorrow.length?' · '+tomorrow.length+' periods tomorrow':' · tomorrow’s prices not yet published')+' · fetched '+(p.fetchedAt?new Date(p.fetchedAt).toLocaleString():'unknown')+'. Total includes energy and taxes; network fees and fixed charges may be additional.';
+}
+
 function render(){
  const latest=M.latest(data),v=latest.values,stale=M.age(data)>90000;
  const live=Boolean(tibberLive&&tibberLive.latest);
@@ -74,6 +110,7 @@ function render(){
  text('data-time',live?'Latest Tibber measurement · '+formatTime(t.timestamp):(mode==='demo'?'Synthetic sample':'Latest recorded sample')+' · '+formatTime(latest.at));
  text('scene-source',live?'LIVE TIBBER DATA':mode==='demo'?'SAMPLE HOME':'YOUR IMPORTED READINGS');
  text('subtitle',C.subtitle||'One place to understand your home.');
+ renderPriceChart();
  if(live){
   $('energy-cards').replaceChildren(
    card('TIBBER POWER',t.power,'W','Live reading from the main meter.','grid'),
