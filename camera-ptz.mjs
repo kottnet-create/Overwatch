@@ -44,9 +44,13 @@ export async function moveCamera(direction){
  const vectors={left:{x:-0.45,y:0,zoom:0},right:{x:0.45,y:0,zoom:0},up:{x:0,y:0.45,zoom:0},down:{x:0,y:-0.45,zoom:0}};
  const vector=vectors[direction];if(!vector)throw new Error('Unsupported camera direction.');
  const client=await getClient();
- // The onvif package requires a nested velocity object. The camera advertises
- // continuous Pan/Tilt but no continuous Zoom space, so send x/y only.
- await client.ptz.continuousMove({profileToken:activeProfile,velocity:{panTilt:{x:vector.x,y:vector.y,space:'http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocityGenericSpace'}},timeout:600});
+ // Use RelativeMove instead of ContinuousMove: the camera advertises a
+ // RelativePanTiltTranslationSpace, and this avoids relying on its failing
+ // ContinuousMove endpoint. Each click is a small bounded movement.
+ await client.ptz.relativeMove({
+  profileToken:activeProfile,
+  translation:{panTilt:{x:vector.x*0.12,y:vector.y*0.12,space:'http://www.onvif.org/ver10/tptz/PanTiltSpaces/TranslationGenericSpace'}}
+ });
  return {ok:true};
 }
 export async function stopCamera(){
