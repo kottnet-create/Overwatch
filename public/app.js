@@ -86,7 +86,7 @@ function renderNibeCards(){
  if(!nibePoints.length){host.replaceChildren(card('NIBE INPUTS',null,'','Waiting for myUplink readings.','load'));return;}
  const seen=new Set(),points=nibePoints.filter(p=>{
   const id=String(p.parameterId??p.id??p.parameterName??p.name??''),name=String(p.parameterName||p.name||'');
-  const wanted=/\bBT(?:1|2|3|6|7|10|11|12|50)\\b/i.test(name)||/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|kompressor.*hastighet/i.test(name);
+  const wanted=/\bBT(?:1|2|3|6|7|10|11|12|50)\b/i.test(name)||/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|kompressor.*hastighet/i.test(name);
   if(!wanted||!id||seen.has(id))return false;seen.add(id);
   return p.value!==undefined&&p.value!==null&&Number.isFinite(Number(p.value))&&Number(p.value)!==-32768;
  });
