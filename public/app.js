@@ -81,6 +81,9 @@ function renderPriceChart(){
  const fmt=n=>Number.isFinite(n)?Math.round(n*100)+' öre/kWh':'—';
  $('price-current').textContent=fmt(p.current?.priceSekPerKwh);
  const vals=rows.map(x=>x.priceSekPerKwh).filter(Number.isFinite);
+ const negativeRows=rows.filter(x=>Number.isFinite(x.priceSekPerKwh)&&x.priceSekPerKwh<0);
+ const alertEl=$('price-alert');
+ if(alertEl){if(negativeRows.length){const times=negativeRows.map(x=>new Date(x.startsAt).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));const unique=[...new Set(times)];alertEl.hidden=false;alertEl.textContent='VARNING · Negativt spotpris! '+negativeRows.length+' kvart(er) under 0 öre/kWh. '+(unique.length<=4?'Gäller kl. '+unique.join(', '):'Första period kl. '+unique[0]+' och sista kl. '+unique[unique.length-1]+'.');}else{alertEl.hidden=true;alertEl.textContent='';}}
  $('price-low').textContent=fmt(p.lowest?.priceSekPerKwh??Math.min(...vals));
  $('price-high').textContent=fmt(p.highest?.priceSekPerKwh??Math.max(...vals));
  status.className='tibber-state'+(p.stale?' offline':' online');
