@@ -89,3 +89,23 @@ test('assesses only the newest stored sample for each NIBE point', () => {
   assert.equal(result.counts.stale, 0);
   assert.equal(result.readings.length, 2);
 });
+
+test('uses verified live system connection and fresh poll receipt for unchanged point values', () => {
+  const result = assessNibeSource({
+    accountStatus: {
+      configured: true,
+      connectionState: 'connected',
+      lastSuccessAt: new Date(now - 1000).toISOString(),
+    },
+    latestMeasurements: [{
+      ...sample('BT6', -45 * 60 * 1000, -1000),
+      receivedAt: new Date(now - 1000).toISOString(),
+    }],
+    now,
+  });
+  assert.equal(result.connection, 'connected');
+  assert.equal(result.connectionFreshness, 'fresh');
+  assert.equal(result.dataQuality, 'fresh');
+  assert.equal(result.usable, true);
+  assert.equal(result.readings[0].sourceAgeMs, 45 * 60 * 1000);
+});
