@@ -383,3 +383,14 @@ Added a read-only per-point history quality endpoint on overwatch-foundation:
 
 Files changed: measurement-store.mjs, nibe-history.mjs, server.mjs, nibe-quality.mjs, test/measurement-store.test.mjs, test/status-api.test.mjs, docs/DATA-ARCHITECTURE.md, docs/PROJECT-STATUS.md.
 Local Windows test suite has not yet been run for these changes. Next: fetch/fast-forward overwatch-foundation, run npm.cmd test, then inspect /api/myuplink/history/quality?hours=24 and the 720-hour overview. No live SQLite database has been modified by the code authoring operation.
+
+
+## NIBE collection-gap diagnostics — 2026-11-26
+
+Extended GET /api/myuplink/history/quality?hours=... with two per-point fields:
+- `gapsOver10Minutes`: number of intervals between successive stored samples longer than ten minutes.
+- `maxGapMinutes`: longest interval between successive stored samples, rounded to two decimals.
+
+This is calculated from `received_at` using SQLite LAG/window functions. It is read-only; no schema changes, migrations or live-data modifications. It helps verify whether five-minute collection has been continuous but does not diagnose the cause of any gap.
+
+Added tests for a deliberate 15-minute collection gap and for the endpoint response fields. Local Windows tests are pending. Next: fetch/fast-forward, run `npm.cmd test`, then inspect the 720-hour quality endpoint again. Do not restart or edit the running server until the local test result is known.
