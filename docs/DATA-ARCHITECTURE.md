@@ -11,7 +11,7 @@ The current code has three independent history paths:
 | Path | Current implementation | Current behavior |
 | --- | --- | --- |
 | NIBE / myUplink | nibe-history.mjs | SQLite at data/overwatch.sqlite; records selected BT points every five minutes; 30-day retention |
-| Tibber Pulse | tibber.mjs | data/tibber-history.json; stores a sample no more often than every five minutes; keeps at most 9,000 samples |
+| Tibber Pulse | tibber.mjs + tibber-history.mjs | New samples are written to the shared SQLite database at five-minute intervals; existing data/tibber-history.json is read-only compatibility history until an explicit migration is verified |
 | Generic recorder | history.mjs + collector.mjs | Schema-1 JSON at data/history.json; maximum 5,000 samples and 2 MB |
 
 Tibber prices are separately cached in data/tibber-prices.json. The general recorder is not currently the persistent store used by the live Tibber or NIBE integrations.
@@ -72,7 +72,7 @@ Implement in small, testable stages:
 
 1. Add a shared SQLite storage module and tests without changing current live integrations.
 2. Make NIBE use the shared module while preserving the existing table, database path, API response shape and 30-day retention. Verify that existing data/overwatch.sqlite rows remain readable.
-3. Add Tibber writes to the same database while preserving /api/tibber/history response compatibility for the current UI.
+3. Add Tibber writes to the same database while preserving /api/tibber/history response compatibility for the current UI. Implemented in tibber-history.mjs; local runtime verification is pending.
 4. Add a one-time, explicit migration for existing Tibber JSON history. Keep the original JSON files untouched as a backup until row counts and timestamp ranges have been verified. The old JSON format does not contain a separate receipt timestamp; migration must document that limitation rather than pretending the original receipt time is known.
 5. Update the UI to read a provider-neutral history API where appropriate. Keep provider-specific status endpoints where they add value.
 6. Retire the legacy JSON Tibber writer only after the SQLite path has passed tests and local verification.
@@ -104,8 +104,8 @@ The Fire TV Stick should act as a browser/display client only. All provider conn
 
 ## Current implementation gaps
 
-- Tibber history still writes to JSON, not the NIBE SQLite database.
-- NIBE and Tibber do not yet share a storage abstraction.
+- New Tibber live samples now write to the same SQLite database as NIBE through tibber-history.mjs; existing JSON history is still read-only and has not been migrated.
+- NIBE and Tibber now share the measurement-store abstraction for new samples, pending local runtime verification.
 - The generic schema-1 recorder remains separate and is not a unified multi-provider store.
 - OVERWATCH_DB_PATH currently configures the NIBE SQLite database; it is not yet a general database setting for every integration.
 - The current server is loopback-only; mobile and Fire TV access are not yet implemented.
@@ -136,6 +136,8 @@ The Fire TV Stick should act as a browser/display client only. All provider conn
 
 ### Still pending
 
-- Tibber still writes to its existing JSON history file; no Tibber code or live data has been migrated yet.
+- Added tibber-history.mjs and connected tibber.mjs to the shared SQLite measurement store. New Tibber samples retain provider and receipt timestamps, typed units, and the existing five-minute sampling guard.
+- Existing data/tibber-history.json remains untouched and is loaded as legacy read-only history. No historical JSON-to-SQLite migration has been run.
+- Added test/tibber-history.test.mjs for SQLite persistence, restart behavior, legacy-file preservation, field mapping, and sampling guards. These tests have not yet been run on the user's local Windows checkout.
 - Existing data/overwatch.sqlite, data/tibber-history.json and data/tibber-prices.json have not been accessed or modified by these changes.
 - The shared module is currently used by NIBE only. Do not describe all integrations as unified until Tibber has been migrated and verified.
