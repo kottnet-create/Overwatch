@@ -20,19 +20,24 @@ test('gap over 10 minutes does not connect and single-point chart remains visibl
 test('recorder persists newer samples, preserves timestamps, and rejects mixing sources',()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'observatory-test-')),input=path.join(dir,'input.json'),history=path.join(dir,'data/history.json');try{fs.writeFileSync(input,JSON.stringify(sample()));assert.equal(recordFile(input,history),1);assert.equal(recordFile(input,history),0);const next=sample({solar:40},'2026-01-01T12:01:00Z');fs.writeFileSync(input,JSON.stringify(next));assert.equal(recordFile(input,history),1);assert.equal(readHistory(history).samples.length,2);assert.equal(readHistory(history).samples.at(-1).at,'2026-01-01T12:01:00.000Z');fs.writeFileSync(input,JSON.stringify({...next,source:'Different source'}));assert.throws(()=>recordFile(input,history),/Source changed/)}finally{fs.rmSync(dir,{recursive:true,force:true})}});
 test('NIBE SQLite history survives closing and reopening the database',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'overwatch-nibe-')),dbPath=path.join(dir,'overwatch.sqlite');
- let now=Date.parse('2026-11-25T12:00:00.000Z');
+ let now=Date.parse('2026-11-25T12:00:00.000Z'),first=null,second=null;
  const payload={devices:[{systemId:'system-1',deviceId:'device-1',points:[{parameterId:'bt7',parameterName:'BT7 Hot water top',parameterValue:48.5,parameterUnit:'°C',timestamp:'2026-11-25T11:59:00.000Z'}]}]};
  try{
-  const first=createNibeHistory({dbPath,now:()=>now});
+  first=createNibeHistory({dbPath,now:()=>now});
   assert.equal(first.record(payload).inserted,1);
   assert.equal(first.getHistory(24).count,1);
-  first.close();
+  first.close();first=null;
   now+=5*60*1000;
-  const second=createNibeHistory({dbPath,now:()=>now});
+  second=createNibeHistory({dbPath,now:()=>now});
   assert.equal(second.getHistory(24).count,1);
   assert.equal(second.getLatest()[0].value,48.5);
   assert.equal(second.stats().count,1);
-  second.close();
- }finally{fs.rmSync(dir,{recursive:true,force:true});}
+  second.close();second=null;
+ }finally{
+  second?.close();
+  first?.close();
+  fs.rmSync(dir,{recursive:true,force:true});
+ }
 });
+
 test('local server serves only public files, blocks writes/foreign Host, and returns validated history',async()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'observatory-http-')),history=path.join(dir,'history.json');fs.writeFileSync(history,JSON.stringify(sample()));const server=createServer({historyFile:history});await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;try{assert.equal((await fetch(base)).status,200);for(const route of ['/package.json','/README.md','/data/history.json','/.env','/assets/../server.mjs','/assets/%2e%2e/server.mjs'])assert.equal((await fetch(base+route)).status,404);assert.equal((await fetch(base,{method:'POST'})).status,405);assert.equal(await new Promise((resolve,reject)=>{http.get(base,{headers:{Host:'foreign.example'}},r=>{r.resume();resolve(r.statusCode)}).on('error',reject)}),403);const r=await fetch(base+'/api/history');assert.equal(r.status,200);assert.equal((await r.json()).samples.length,1);assert.match(r.headers.get('content-security-policy'),/frame-ancestors 'none'/);assert.equal((await fetch(base+'/assets/starter-house.svg')).status,200)}finally{await new Promise(r=>server.close(r));fs.rmSync(dir,{recursive:true,force:true})}});
