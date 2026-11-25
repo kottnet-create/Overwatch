@@ -5,8 +5,16 @@ import {assessReadingQuality} from './data-quality.mjs';
  * token with a verified live API connection. myUplink's current status route
  * only confirms that credentials are stored, so connection remains unknown.
  */
-export function assessNibeSource({accountStatus, latestMeasurements = [], now = Date.now(), maxReadingAgeMs = 3 * 60 * 1000} = {}) {
-  const configured = accountStatus?.connected === true;
+export function assessNibeSource({accountStatus, latestMeasurements = [], now = Date.now(), maxReadingAgeMs = 7 * 60 * 1000} = {}) {
+  const configured = accountStatus?.configured === true || accountStatus?.connected === true;
+  const liveState = String(accountStatus?.connectionState || '').toLowerCase();
+  const connection = ['connected', 'online', 'ready'].includes(liveState) ? 'connected'
+    : ['disconnected', 'offline', 'closed'].includes(liveState) ? 'disconnected'
+    : liveState === 'error' ? 'error'
+    : configured ? 'unknown' : 'not_configured';
+  const lastSuccessAt = accountStatus?.lastSuccessAt || null;
+  const connectionAgeMs = lastSuccessAt ? Math.max(0, now - Date.parse(lastSuccessAt)) : null;
+  const connectionFresh = Number.isFinite(connectionAgeMs) && connectionAgeMs <= 10 * 60 * 1000;
   // getLatest() currently returns a bounded history window, not one row per
   // parameter. Keep only the newest received sample for each NIBE point.
   const newestByPoint = new Map();
@@ -25,16 +33,20 @@ export function assessNibeSource({accountStatus, latestMeasurements = [], now = 
       value: sample?.value,
       unit: sample?.unit,
       source: 'myUplink',
-      sourceAt: sample?.sourceTimestamp,
+      // myUplink's point timestamp describes when the value last changed.
+      // The endpoint returns the current snapshot, so polling receipt time
+      // determines whether the snapshot itself is fresh.
+      sourceAt: sample?.receivedAt || sample?.timestamp,
       receivedAt: sample?.receivedAt || sample?.timestamp,
     }, {now, maxAgeMs: maxReadingAgeMs});
+    const sourceAgeMs = sample?.sourceTimestamp ? now - Date.parse(sample.sourceTimestamp) : null;
     return {
       parameterId: sample?.parameterId ?? null,
       parameterName: sample?.parameterName ?? null,
       unit: sample?.unit ?? null,
       quality: quality.quality,
       reason: quality.reason,
-      sourceAgeMs: quality.sourceAgeMs ?? null,
+      sourceAgeMs: Number.isFinite(sourceAgeMs) ? Math.max(0, sourceAgeMs) : null,
       receivedAgeMs: quality.receivedAgeMs ?? null,
     };
   });
@@ -53,14 +65,15 @@ export function assessNibeSource({accountStatus, latestMeasurements = [], now = 
   return {
     provider: 'myUplink / NIBE',
     configured,
-    connection: configured ? 'unknown' : 'not_configured',
-    connectionFreshness: 'unknown',
-    lastSuccessAt: null,
+    connection,
+    connectionFreshness: connectionFresh ? 'fresh' : 'unknown',
+    lastSuccessAt,
+    connectionAgeMs,
     dataQuality,
-    usable: false,
-    reason: configured
-      ? 'live_connection_not_verified_by_current_myUplink_status'
-      : 'myuplink_account_not_connected',
+    usable: connection === 'connected' && connectionFresh && counts.fresh > 0,
+    reason: connection !== 'connected' ? (configured ? 'live_connection_not_verified' : 'myuplink_account_not_connected')
+      : !connectionFresh ? 'live_connection_status_stale'
+      : counts.fresh === 0 ? 'no_fresh_nibe_snapshot' : null,
     readingCount: readings.length,
     counts,
     readings,
