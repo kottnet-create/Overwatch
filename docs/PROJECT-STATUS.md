@@ -185,3 +185,16 @@ When asked to prepare a handoff:
 6. Update this file and the relevant technical document in the repository when GitHub access is available.
 7. Provide the user with the short standard new-chat prompt above, plus a concise task-specific continuation note.
 8. Never include secret values; refer only to local variable names/configuration locations.
+
+
+## Routine summary after every 10 chats
+
+To reduce information loss across conversations, use a checkpoint after approximately every 10 Overwatch chats:
+
+1. At the start of a new Overwatch chat, if the user mentions the checkpoint or asks for a handoff, check whether a recent checkpoint is recorded here. Do not claim to know the exact total number of chats unless the user has supplied the count.
+2. When the user says 10 chats have passed, or asks for the 10-chat checkpoint, prepare a consolidated summary of decisions, verified implementation, unresolved issues, important commands/results, relevant files and the next steps.
+3. Update this status file and the relevant technical documentation on the active development branch when GitHub access is available.
+4. Give the user a short continuation note/prompt that can be pasted into the next chat.
+5. Also prepare a checkpoint sooner after a major milestone or when a chat is becoming long; do not wait for the 10-chat mark if that risks losing information.
+
+Limitation: ChatGPT cannot reliably count all separate chats in the background, monitor chat creation, or trigger a summary automatically at exactly chat number 10. Treat this as a collaboration procedure, not an automatic scheduled trigger. If the count is uncertain, make a checkpoint when the user asks or when a substantial milestone is reached.
