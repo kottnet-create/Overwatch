@@ -26,7 +26,12 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   if(route==='/api/status'&&req.method==='GET'){
    try{
     let accountStatus={connected:false};
-    myUplink.status((_status,body)=>{try{accountStatus=JSON.parse(body);}catch{}});
+    try{
+     if(typeof myUplink.connectionStatus==='function') accountStatus=await myUplink.connectionStatus();
+     else myUplink.status((_status,body)=>{try{accountStatus=JSON.parse(body);}catch{}});
+    }catch(error){
+     accountStatus={configured:true,connectionState:'error',connectionError:String(error.message||'myUplink connection check failed')};
+    }
     const sources=[
      assessTibberSource(tibberMonitor.getStatus()),
      assessNibeSource({accountStatus,latestMeasurements:nibeHistory.getLatest()}),
