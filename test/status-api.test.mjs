@@ -83,3 +83,28 @@ test('GET /api/status keeps unconfigured and missing providers unavailable', asy
     await new Promise(resolve => server.close(resolve));
   }
 });
+
+test('GET /api/status uses verified live myUplink device connection', async () => {
+  const server = makeServer({
+    myUplink: {
+      connectionStatus: async () => ({
+        configured: true,
+        connectionState: 'connected',
+        lastSuccessAt: new Date().toISOString(),
+        devices: [{deviceName: 'Nibe F1255', connectionState: 'Connected'}],
+      }),
+    },
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const response = await fetch('http://127.0.0.1:'+server.address().port+'/api/status');
+    const body = await response.json();
+    const nibe = body.sources.find(source => source.provider === 'myUplink / NIBE');
+    assert.equal(response.status, 200);
+    assert.equal(nibe.connection, 'connected');
+    assert.equal(nibe.connectionFreshness, 'fresh');
+    assert.equal(nibe.usable, true);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
