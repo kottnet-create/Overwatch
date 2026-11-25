@@ -160,3 +160,45 @@ The Fire TV Stick should act as a browser/display client only. All provider conn
 - Added test/tibber-history.test.mjs for SQLite persistence, restart behavior, legacy-file preservation, field mapping, and sampling guards. These tests have not yet been run on the user's local Windows checkout.
 - Existing data/overwatch.sqlite, data/tibber-history.json and data/tibber-prices.json have not been accessed or modified by these changes.
 - The shared module is currently used by NIBE only. Do not describe all integrations as unified until Tibber has been migrated and verified.
+
+
+## Provider-neutral data quality and status contract — 2026-11-26
+
+A pure backend module, data-quality.mjs, now defines a common assessment contract. It is intentionally not wired into provider adapters, API routes, collection loops or the dashboard yet.
+
+### Reading quality
+
+assessReadingQuality(reading, options) distinguishes:
+- missing: no reading supplied;
+- invalid: malformed value/unit/timestamp, unexpected unit when an expected unit is supplied, or timestamps too far in the future;
+- stale: either the provider source timestamp or Overwatch receipt timestamp is older than the configured maximum age;
+- fresh: finite numeric value, non-empty unit, valid source and receipt timestamps, acceptable timestamp age, and matching expected unit when specified.
+
+Default reading freshness is three minutes. A 30-second future tolerance allows small clock differences. Defaults can be overridden for metrics with different update cadences. This function does not interpret provider-specific field semantics, convert units, or decide whether a physical value is plausible.
+
+### Connection status
+
+assessConnectionStatus(config) assesses connection/configuration independently from measurement quality:
+- not_configured when credentials/configuration are absent;
+- connected, connecting, disconnected, error, needs_attention or unknown from a normalized status label;
+- last-success freshness is reported separately as fresh, stale, invalid or unknown.
+
+Default last-success freshness is ten minutes. A provider can therefore be connected while its last successful poll is stale, or connected while its latest measurement is stale. Missing last-success timestamps remain unknown rather than being fabricated.
+
+### Combined source status
+
+buildSourceStatus(...) returns provider, configured, connection, connectionFreshness, lastSuccessAt, connectionAgeMs, dataQuality, dataReason, readingAgeMs and usable.
+
+usable is true only when the provider is configured, connection state is connected, last-success freshness is not stale/invalid, and the latest reading is fresh and valid. This is a conservative general-purpose gate; metric-specific checks and energy-flow alignment rules still apply separately.
+
+### Implementation boundary
+
+- The module is provider-neutral and side-effect free.
+- No live integration, API response, dashboard component, polling cadence or stored measurement has been changed.
+- Provider adapters must map their existing state to the normalized input contract before adoption.
+- A provider with no confirmed API (for example Huawei or Emaldo) must remain not configured/unavailable; sample or demo data must not make it appear live.
+- Future adapter integration should preserve the distinction between connection health, last successful contact and measurement freshness.
+
+### Tests
+
+test/data-quality.test.mjs covers fresh, missing, invalid, wrong-unit, stale and future-dated readings; connection-state mapping; independent connection freshness; combined usability; and unconfigured providers. Local Windows test execution is pending.
