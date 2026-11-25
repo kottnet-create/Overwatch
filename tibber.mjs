@@ -2,13 +2,13 @@ import WebSocket from 'ws';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {createTibberHistory} from './tibber-history.mjs';
 
 const API_URL = 'https://api.tibber.com/v1-beta/gql';
 const USER_AGENT = 'Overwatch/0.1.0 (Node.js home-energy-monitor)';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(ROOT, 'data', 'tibber-history.json');
 const SAMPLE_INTERVAL_MS = 5 * 60 * 1000;
-const MAX_HISTORY_SAMPLES = 9000;
 const LIVE_QUERY = `subscription OverwatchLiveMeasurement($homeId: ID!) {
   liveMeasurement(homeId: $homeId) {
     timestamp
@@ -28,18 +28,17 @@ const LIVE_QUERY = `subscription OverwatchLiveMeasurement($homeId: ID!) {
 
 const sleepJitter = ms => Math.round(ms * (0.75 + Math.random() * 0.5));
 
-export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId = process.env.TIBBER_HOME_ID, historyFile = HISTORY_FILE } = {}) {
+export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId = process.env.TIBBER_HOME_ID, historyFile = HISTORY_FILE, dbPath = process.env.OVERWATCH_DB_PATH ? path.resolve(ROOT, process.env.OVERWATCH_DB_PATH) : path.join(ROOT, 'data', 'overwatch.sqlite'), now = () => Date.now() } = {}) {
   let socket = null;
   let stopped = false;
   let retryTimer = null;
   let retryAttempt = 0;
-  let lastStoredAt = 0;
-  let history = loadHistory();
+  const historyStore = createTibberHistory({dbPath, legacyHistoryFile: historyFile, now});
+  let history = historyStore.getHistory();
   let selectedHomeId = homeId || null;
   let prices = loadPrices();
   let priceFetchedAt = prices.fetchedAt ? Date.parse(prices.fetchedAt) : 0;
   let priceTimer = null;
-  lastStoredAt = history.length ? Date.parse(history.at(-1).timestamp) : 0;
   let state = {
     configured: Boolean(token),
     status: token ? 'starting' : 'not_configured',
@@ -121,28 +120,13 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
     }
   }
 
-  function loadHistory() {
-    try {
-      if (!fs.existsSync(historyFile)) return [];
-      const parsed = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
-      if (!Array.isArray(parsed) || parsed.length > MAX_HISTORY_SAMPLES) return [];
-      return parsed.filter(item => item && typeof item.timestamp === 'string' && Number.isFinite(Date.parse(item.timestamp)));
-    } catch { return []; }
-  }
-
   function storeSample(sample) {
-    const at = Date.parse(sample.timestamp);
-    if (!Number.isFinite(at) || at - lastStoredAt < SAMPLE_INTERVAL_MS) return;
-    history.push({ ...sample });
-    history = history.slice(-MAX_HISTORY_SAMPLES);
     try {
-      fs.mkdirSync(path.dirname(historyFile), { recursive: true, mode: 0o700 });
-      const temporary = historyFile + '.tmp';
-      fs.writeFileSync(temporary, JSON.stringify(history), { mode: 0o600 });
-      fs.renameSync(temporary, historyFile);
-      lastStoredAt = at;
+      const result = historyStore.recordSample(sample, {systemId: selectedHomeId || homeId || ''});
+      history = historyStore.getHistory();
+      if (result.error) update({historyError: 'Could not save local Tibber history: ' + result.error});
     } catch (error) {
-      update({ historyError: 'Could not save local Tibber history: ' + error.message });
+      update({historyError: 'Could not save local Tibber history: ' + error.message});
     }
   }
 
@@ -326,6 +310,7 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
       retryTimer = null;
       if (socket) socket.close(1000, 'Overwatch server stopping');
       socket = null;
+      historyStore.close();
     },
   };
 }
