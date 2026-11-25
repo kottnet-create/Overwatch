@@ -280,3 +280,8 @@ NIBE is usable only when the live connection was verified recently and at least 
 Added GET /api/myuplink/history/quality?hours=720 as a read-only diagnostic view over the existing measurements table. The requested window is bounded by the shared store to 1–720 hours (default 720). It returns one entry per NIBE source/device/parameter with sampleCount, firstReceivedAt, lastReceivedAt, the latest stored value/unit/sourceAt/receivedAt, ageMs and a simple quality label. A point is fresh when its latest poll receipt is no older than seven minutes; otherwise it is stale. The response also includes aggregate fresh/stale counts and generatedAt.
 
 This is a history coverage/recency diagnostic, not proof that the underlying sensor value has physically changed. An unchanged source timestamp is retained as metadata; fresh receipt time shows that Overwatch continues to poll the point. Existing history endpoints and response shapes are unchanged. No migration, deletion, provider write or live database operation was performed by this code change. Tests use temporary SQLite databases.
+
+
+### Collection-gap diagnostics — 2026-11-26
+
+The per-point history quality query now also reports `gapsOver10Minutes` and `maxGapMinutes`, calculated from consecutive Overwatch receipt timestamps in the requested window. A gap is counted when two successive stored samples for the same source/system/device/parameter are more than ten minutes apart. This helps distinguish a continuously polled point from a point with collection interruptions. It does not classify a gap as a provider outage or infer why a poll was missed. The calculation is read-only and uses SQLite window functions; existing history rows and API history payloads are unchanged.
