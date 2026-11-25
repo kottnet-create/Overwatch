@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {createMeasurementStore} from './measurement-store.mjs';
 
-const ROOT = path.dirname(new URL(import.meta.url).pathname);
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_HISTORY_FILE = path.join(ROOT, 'data', 'tibber-history.json');
 const SAMPLE_INTERVAL_MS = 5 * 60 * 1000;
 const RETENTION_DAYS = 30;
