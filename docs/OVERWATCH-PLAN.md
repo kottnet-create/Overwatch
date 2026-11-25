@@ -161,3 +161,12 @@ Expected behavior:
 Network research indicates the community integration uses local camera TCP 443 for control and TCP 8800 for proprietary direct video; 2020 is only relevant if ONVIF events exist. User reports the C460 currently has DHCP address 192.168.20.167. From the Windows Overwatch PC on the same IoT SSID/VLAN (PC 192.168.20.218), TCP 443 and TCP 8800 both returned TcpTestSucceeded=True while the C460 live view was active in the Tapo app; both failed while the battery camera was asleep. This supports on-demand wake behavior and confirms no new UniFi firewall rule is needed for these ports in the current same-VLAN test. Do not open WAN ports. Before adding any UniFi rules, verify that this DHCP address is still assigned to the C460 and test reachability from the Overwatch host. Add only narrow host-to-camera rules after confirming the exact protocol.
 
 No C460 code, credentials, or firewall rules have been added yet. First validate authentication and a single on-demand snapshot/direct stream on the user's Windows development PC, then integrate into Overwatch and test stream shutdown.
+
+
+### Latest C460 authentication test (2026-11-25)
+
+The user confirmed that C460 uses the normal TP-Link/Tapo cloud account; the Tapo app did not offer a separate Camera Account for this camera. Two-step verification is enabled on that account: authenticator/app code is the primary method and email is the backup.
+
+A local Python test was run from `C:\\Overwatch-extra\\Tapo-C460\\venv\\Scripts\\python.exe`, using `getpass()` to avoid echoing the password. The user confirmed that no characters were visible while typing, which is expected. The library returned `Exception: Invalid authentication data`.
+
+This failure does not prove that the password is incorrect and does not isolate whether 2FA, firmware, login flow or library behavior caused the rejection. Before another attempt, inspect the exact installed pytapo/pyTapo version and source/request sequence and verify the relevant firmware-specific fix. Do not perform repeated discovery/login probes; the earlier notes about a limited login-phase request counter and temporary lockout remain important. The suggestion to try username `admin` with the cloud password is unverified and must not be treated as an established fix. Never request or store the user's password or 2FA code in chat or Git.
