@@ -2,8 +2,12 @@ const DEFAULT_MAX_AGE_MS = 3 * 60 * 1000;
 const DEFAULT_MAX_SKEW_MS = 90 * 1000;
 
 function validTimestamp(value) {
-  return typeof value === 'string' && Number.isFinite(Date.parse(value)) &&
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/i.test(value);
+  if (typeof value !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/i.test(value) ||
+      !Number.isFinite(Date.parse(value))) return false;
+  const day = value.slice(0, 10);
+  const parts = day.split('-').map(Number);
+  return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])).toISOString().slice(0, 10) === day;
 }
 
 function validateReading(reading, name, now, maxAgeMs) {
@@ -16,9 +20,14 @@ function validateReading(reading, name, now, maxAgeMs) {
     return {ok: false, reason: name + '_invalid_timestamp'};
   }
   const receivedAt = Date.parse(reading.receivedAt);
-  const ageMs = now - receivedAt;
-  if (ageMs < -30_000 || ageMs > maxAgeMs) return {ok: false, reason: name + '_stale'};
-  return {ok: true, reading, sourceAtMs: Date.parse(reading.sourceAt)};
+  const sourceAtMs = Date.parse(reading.sourceAt);
+  const receivedAgeMs = now - receivedAt;
+  const sourceAgeMs = now - sourceAtMs;
+  if (receivedAgeMs < -30_000 || receivedAgeMs > maxAgeMs ||
+      sourceAgeMs < -30_000 || sourceAgeMs > maxAgeMs) {
+    return {ok: false, reason: name + '_stale'};
+  }
+  return {ok: true, reading, sourceAtMs};
 }
 
 /**
