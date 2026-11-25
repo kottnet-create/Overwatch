@@ -55,6 +55,7 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   if(route==='/api/myuplink/systems')return myUplink.systems(send);
   if(route==='/api/myuplink/points')return myUplink.points(send);
   if(route==='/api/myuplink/history')return send(200,JSON.stringify(nibeHistory.getHistory(new URL(req.url,'http://localhost').searchParams.get('hours')||24)),'application/json');
+  if(route==='/api/myuplink/history/quality')return send(200,JSON.stringify(nibeHistory.getPointStats(new URL(req.url,'http://localhost').searchParams.get('hours')||720)),'application/json');
   if(route==='/api/myuplink/history/latest')return send(200,JSON.stringify({stats:nibeHistory.stats(),samples:nibeHistory.getLatest()}),'application/json');
   if(route==='/api/history'){try{const data=readHistory(historyFile);return data?send(200,JSON.stringify(data),'application/json'):send(404,'No history yet. Start the recorder first.');}catch{return send(422,'History is invalid or too large. Review the recorder output.');}}
   if(route==='/api/tibber/status')return send(200,JSON.stringify(tibberMonitor.getStatus()),'application/json');
