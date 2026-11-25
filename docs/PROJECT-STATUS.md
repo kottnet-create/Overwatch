@@ -126,3 +126,62 @@ Git history is useful but is not a complete backup by itself. For important mile
 3. Inspect the exact files involved in the requested task.
 4. Confirm which parts are implemented and which are only planned.
 5. Continue from the latest documented next step; do not restart completed work or make speculative changes.
+
+
+## Private local configuration and credentials
+
+Some details are required to make future sessions easy to resume, but secrets must never be placed in this repository or in a chat handoff.
+
+- Keep actual API keys, passwords, account email addresses, OAuth refresh tokens, camera credentials and private device identifiers in a private local configuration file (normally `.env`) or a reputable password manager.
+- The repository may contain only sanitized templates such as `.env.example` with variable names and placeholder values.
+- Confirm that `.env*`, real camera bridge configuration, private keys and local data remain excluded by `.gitignore` before every commit.
+- Back up the private configuration separately in an encrypted password manager or encrypted backup. Do not put an unencrypted copy in a shared folder or ordinary Git repository.
+- For a new ChatGPT session, tell the assistant which local configuration file exists and which variable names are configured; do not paste the secret values. The assistant can guide the user to run local checks that confirm whether a value is present without printing it.
+- Record non-secret account/setup metadata here when useful (provider, account type, 2FA method, API access status, which variables are required, where the local file lives). Never record the actual email/password/token.
+- The assistant cannot directly read files on the user's PC just because their paths are documented here. The user must run commands locally or provide a sanitized output.
+
+## Standard prompt to start every new Overwatch chat
+
+Copy and paste this block into a new chat in the Overwatch Project:
+
+```text
+We are continuing the existing Overwatch project. Do not start over.
+
+Repository: https://github.com/kottnet-create/Overwatch
+Working branch: overwatch-foundation (verify the current branch before editing; do not change main unless I explicitly ask).
+
+First read:
+- docs/PROJECT-STATUS.md
+- docs/OVERWATCH-PLAN.md
+- README.md
+- and any relevant integration/data documentation.
+
+Then inspect the actual current repository state and the files relevant to my request. Treat GitHub code as the source of truth for implementation status; documentation is the record of decisions and handoffs. Do not assume planned work is implemented.
+
+Project rules:
+- Read-only integrations unless I explicitly approve otherwise.
+- Never ask me to paste passwords, 2FA codes, API keys, tokens or private account details into chat.
+- Secrets are stored locally in private .env/config files or a password manager. Use sanitized templates in Git only.
+- Give me clear, one-step-at-a-time Windows PowerShell instructions.
+- Make small changes, explain what they do, run relevant tests, and report exact files changed and results.
+- Preserve working functionality; do not make speculative changes.
+- Clearly distinguish verified, implemented-but-unverified, planned and unresolved items.
+
+At the end of a substantial work session, update docs/PROJECT-STATUS.md and the relevant detailed documentation with decisions, files changed, tests/results, remaining issues and the exact next step. Do not commit secrets or private data.
+
+My current task is: [WRITE THE TASK HERE]
+```
+
+## Chat handoff / near-capacity procedure
+
+A chat cannot be relied on to detect its own remaining capacity or guarantee that it will automatically create a handoff before becoming full. The user should ask for a handoff when changing work areas, after a substantial milestone, or whenever the conversation becomes long.
+
+When asked to prepare a handoff:
+1. Summarize only decisions and results actually established in that chat.
+2. Separate completed/verified, completed/unverified, in progress, planned and blocked work.
+3. List exact files, branches, commands, test outputs and relevant commit IDs when known.
+4. Record errors verbatim where useful and state what has and has not been tried.
+5. Identify the next single action.
+6. Update this file and the relevant technical document in the repository when GitHub access is available.
+7. Provide the user with the short standard new-chat prompt above, plus a concise task-specific continuation note.
+8. Never include secret values; refer only to local variable names/configuration locations.
