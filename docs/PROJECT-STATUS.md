@@ -270,3 +270,34 @@ Next step:
 1. User runs `git fetch origin` and `git merge --ff-only origin/overwatch-foundation`.
 2. Run `npm.cmd test` and share the result.
 3. If tests pass, add a separate provider-neutral data-quality/status layer before connecting live normalized readings to the energy calculation.
+
+
+## Provider-neutral data-quality foundation — 2026-11-26
+
+Branch: overwatch-foundation. No changes to main.
+
+Added:
+- data-quality.mjs: pure helpers assessReadingQuality, assessConnectionStatus and buildSourceStatus.
+- test/data-quality.test.mjs: focused tests for reading validity/freshness, connection state, independent last-success freshness, combined usability and unconfigured providers.
+- docs/DATA-ARCHITECTURE.md: documents the shared status contract and its integration boundary.
+
+Contract:
+- Connection state and measurement quality are separate dimensions.
+- Reading quality is missing, invalid, stale or fresh.
+- Connection state is not_configured, connected, connecting, disconnected, error, needs_attention or unknown.
+- Last successful contact freshness is fresh, stale, invalid or unknown.
+- A source is usable only when configured, connected, connection freshness is acceptable and its latest reading is fresh.
+- Defaults: three-minute reading freshness, 30-second future-clock tolerance and ten-minute last-success freshness.
+- The module does not interpret provider fields, convert units, poll APIs or change stored/live data.
+
+Status:
+- Files have been created on the remote development branch.
+- Local Windows tests have not yet been run.
+- No provider adapters, API routes, dashboard code, collection loops or live data were changed.
+- The previous 18/18 test result applies to the pre-existing suite before these new tests; rerun the complete suite after pulling.
+
+Next step:
+1. User runs git fetch origin and git merge --ff-only origin/overwatch-foundation.
+2. Run npm.cmd test and share the full result.
+3. Fix any failures before integrating the module into Tibber, myUplink or Nord Pool.
+4. Only after tests pass, map existing provider statuses into the common contract in small, separately tested changes. Leave Huawei, Emaldo and Zaptec unavailable until access is verified.
