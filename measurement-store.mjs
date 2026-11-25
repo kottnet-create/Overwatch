@@ -137,8 +137,34 @@ export function createMeasurementStore({
     return {count: Number(row.count), oldest: row.oldest, newest: row.newest, retentionDays, databasePath: dbPath};
   }
 
+  function getPointStats({source, hours = 24 * retentionDays} = {}) {
+    assertOpen();
+    const boundedHours = Math.max(1, Math.min(MAX_QUERY_HOURS, Number(hours) || 24));
+    const since = new Date(now() - boundedHours * 3600000).toISOString();
+    const params = [since];
+    let sourceClause = '';
+    if (source) { sourceClause = ' AND source = ?'; params.push(safeText(source, 'source', 80)); }
+    const rows = db.prepare(
+      'WITH grouped AS (' +
+      ' SELECT source, system_id, device_id, parameter_id, COUNT(*) AS sample_count,' +
+      ' MIN(received_at) AS first_received_at, MAX(received_at) AS last_received_at' +
+      ' FROM measurements WHERE received_at >= ?' + sourceClause +
+      ' GROUP BY source, system_id, device_id, parameter_id' +
+      ') SELECT g.source, g.system_id AS systemId, g.device_id AS deviceId,' +
+      ' g.parameter_id AS parameterId, m.parameter_name AS parameterName,' +
+      ' m.value, m.unit, m.source_at AS sourceAt, m.received_at AS receivedAt,' +
+      ' g.sample_count AS sampleCount, g.first_received_at AS firstReceivedAt,' +
+      ' g.last_received_at AS lastReceivedAt' +
+      ' FROM grouped g JOIN measurements m ON m.source = g.source' +
+      ' AND m.system_id = g.system_id AND m.device_id = g.device_id' +
+      ' AND m.parameter_id = g.parameter_id AND m.received_at = g.last_received_at' +
+      ' ORDER BY g.source, g.device_id, g.parameter_id'
+    ).all(...params);
+    return {hours: boundedHours, retentionDays, count: rows.length, points: rows};
+  }
+
   return {
-    recordBatch, getHistory, getLatest, stats, prune,
+    recordBatch, getHistory, getLatest, getPointStats, stats, prune,
     close() { if (!closed.value) { db.close(); closed.value = true; } },
   };
 }
