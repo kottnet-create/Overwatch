@@ -367,3 +367,19 @@ Updated:
 - docs/DATA-ARCHITECTURE.md updated.
 
 Local Windows tests have not yet been run. Pull branch and run npm.cmd test. Expected suite size after the added live-status route regression test: 48 tests. Then restart the server and inspect /api/status. No NIBE controls, data deletion or migration were performed.
+
+
+## NIBE history quality diagnostics — 2026-11-26
+
+Added a read-only per-point history quality endpoint on overwatch-foundation:
+- GET /api/myuplink/history/quality?hours=720
+- Uses the existing SQLite measurements table; no schema migration or live-data changes.
+- Reports one row per NIBE point with sample count, first/last poll receipt, latest value/unit, source timestamp, receipt age and fresh/stale classification.
+- Seven-minute freshness threshold aligns with the five-minute collection interval.
+- Query window is bounded to 1–720 hours.
+- Existing history endpoints remain unchanged.
+- Added tests for per-point SQL aggregation and endpoint response.
+- Updated DATA-ARCHITECTURE.md.
+
+Files changed: measurement-store.mjs, nibe-history.mjs, server.mjs, nibe-quality.mjs, test/measurement-store.test.mjs, test/status-api.test.mjs, docs/DATA-ARCHITECTURE.md, docs/PROJECT-STATUS.md.
+Local Windows test suite has not yet been run for these changes. Next: fetch/fast-forward overwatch-foundation, run npm.cmd test, then inspect /api/myuplink/history/quality?hours=24 and the 720-hour overview. No live SQLite database has been modified by the code authoring operation.
