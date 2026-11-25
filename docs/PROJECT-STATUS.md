@@ -312,3 +312,18 @@ Added:
 The adapter only assesses Tibber live power as a W reading with source and receipt timestamps. It does not infer PV production, battery flow or import/export sign semantics. It does not change Tibber collection, WebSocket lifecycle, history storage, API routes or dashboard. It is not yet exposed to the UI.
 
 Local Windows test execution is pending. Next step: pull the branch and run npm.cmd test; after passing, consider a read-only aggregate status endpoint. Other providers remain unadapted.
+
+
+## myUplink / NIBE data-quality adapter — 2026-11-26
+
+Added:
+- nibe-quality.mjs: assesses latest locally stored NIBE readings using the shared data-quality helper.
+- test/nibe-quality.test.mjs: six tests covering fresh, stale, mixed, missing and invalid measurements, plus connection/configuration distinction.
+
+Accuracy safeguard:
+- Existing /api/myuplink/status only confirms that an OAuth token is stored; it does not verify a live API connection.
+- The adapter therefore reports connection=unknown when configured, and not_configured when no token exists. It does not falsely claim connected.
+- Data quality is assessed per point using source timestamp, receipt timestamp, value and unit. Mixed results are reported as partial.
+- usable remains false until a live API success timestamp is available and the source can be verified.
+
+No OAuth, polling, NIBE history storage, SQLite schema, dashboard or API routes were changed. Local Windows test execution is pending. Next: pull and run npm.cmd test; then implement a safe live-contact timestamp only if it can be recorded without changing collection semantics.
