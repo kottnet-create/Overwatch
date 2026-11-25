@@ -327,3 +327,15 @@ Accuracy safeguard:
 - usable remains false until a live API success timestamp is available and the source can be verified.
 
 No OAuth, polling, NIBE history storage, SQLite schema, dashboard or API routes were changed. Local Windows test execution is pending. Next: pull and run npm.cmd test; then implement a safe live-contact timestamp only if it can be recorded without changing collection semantics.
+
+
+## Nord Pool price-quality adapter — 2026-11-26
+
+Added:
+- nordpool-quality.mjs: assesses cached SE3 price snapshots from the existing Nord Pool/Spotpris.nu module.
+- test/nordpool-quality.test.mjs: seven tests for fresh valid prices, future intervals, missing cache, stale cache, malformed intervals, wrong market units, upstream errors and optional current interval.
+
+Assessment uses fetchedAt (30-minute default freshness), not interval startsAt, because future price periods are expected. The adapter checks SE3, SEK, SEK/kWh and finite interval prices. A refresh error makes the source unusable while preserving the error and cached series metadata.
+
+No Nord Pool fetch, conversion, cache, retry, endpoint or graph behavior changed. Local Windows test execution is pending.
+Next step: pull branch, run npm.cmd test (expected 43 tests), then implement a read-only aggregate source-status endpoint.
