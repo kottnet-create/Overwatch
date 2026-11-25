@@ -16,9 +16,10 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
  const server=http.createServer(async(req,res)=>{
   const send=(status,body,type='text/plain; charset=utf-8')=>{res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-src 'self' http://127.0.0.1:1984 http://localhost:1984; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"});res.end(req.method==='HEAD'?undefined:body)};
   if(!/^(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(req.headers.host||''))return send(403,'Local host only.');
-  if(!['GET','HEAD','POST','DELETE'].includes(req.method))return send(405,'Method not allowed.');
-  if(req.method!=='GET'&&req.method!=='HEAD'){const origin=req.headers.origin;if(origin&&!/^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin))return send(403,'Cross-origin request blocked.');}
   let route;try{route=new URL(req.url,'http://localhost').pathname;}catch{return send(400,'Bad request.');}
+  const writeRoutes={POST:new Set(['/api/cameras/garage/ptz/move','/api/cameras/garage/ptz/stop','/api/cameras/garage/ptz/presets','/api/cameras/garage/ptz/preset']),DELETE:new Set(['/api/cameras/garage/ptz/preset'])};
+  if(!['GET','HEAD'].includes(req.method)&&!writeRoutes[req.method]?.has(route))return send(405,'Method not allowed.');
+  if(req.method!=='GET'&&req.method!=='HEAD'){const origin=req.headers.origin;if(origin&&!/^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin))return send(403,'Cross-origin request blocked.');}
   if(route==='/api/cameras')return send(200,JSON.stringify({cameras:getPublicCameras()}),'application/json');
   if(route==='/api/cameras/garage/ptz/status'&&req.method==='GET')return send(200,JSON.stringify(getCameraPtzStatus()),'application/json');
   if(route==='/api/cameras/garage/ptz/diagnostics'&&req.method==='GET'){try{return send(200,JSON.stringify(await getCameraPtzDiagnostics()),'application/json');}catch(error){console.error('ONVIF PTZ diagnostics failed:',error);return send(503,JSON.stringify({error:error.message}),'application/json');}}
