@@ -264,3 +264,12 @@ The endpoint:
 - Is GET-only and follows the server's existing localhost-only and no-store security behavior.
 
 The endpoint is an initial backend status surface. It is not yet consumed by the dashboard. Automated route tests cover the three-provider response, unavailable sources, summary counts and absence of token fields.
+
+
+## myUplink live connection verification and snapshot freshness — 2026-11-26
+
+The aggregate /api/status route now calls myUplink's read-only /v2/systems/me through connectionStatus() and derives connection state from device connectionState values. A successful API response records lastSuccessAt; an API/auth failure is reported as an error state without exposing credentials. The /api/myuplink/systems endpoint remains available.
+
+For NIBE point quality, receivedAt represents when Overwatch polled the current point snapshot. The provider's source timestamp is retained separately as sourceAgeMs because it may describe when a value last changed, not when the current snapshot was retrieved. Snapshot freshness uses receivedAt with a seven-minute limit, consistent with five-minute polling. The source timestamp remains visible for diagnostics and is not discarded.
+
+NIBE is usable only when the live connection was verified recently and at least one current point snapshot is fresh. A stale or failed live connection remains unavailable. No provider writes or control operations are performed.
