@@ -66,6 +66,25 @@ Continue recording the selected BT points and compressor-frequency point only wh
 
 Keep schema-1 JSON import/export as a portable interchange format for now. It is not the long-term operational database. Do not remove history.mjs or collector.mjs until the dashboard import/export workflow and any existing local history have a deliberate replacement.
 
+## Energy-flow calculation contract
+
+The backend has a pure calculation module in energy-flow.mjs. It is deliberately not wired to live provider data yet.
+
+Normalized inputs and sign conventions:
+- gridNet: W; positive means grid import, negative means export.
+- solarPower: W; non-negative PV generation only.
+- batteryNetPower: W; positive means battery discharge to the home, negative means charging.
+
+Derived site load is calculated as:
+
+`siteLoad = solarPower + gridNet + batteryNetPower`
+
+The equation follows conservation of power: PV + grid import + battery discharge supplies site load + grid export + battery charging.
+
+The calculation returns unavailable/null unless all three inputs have finite values, unit W, valid source and receipt timestamps, are no older than three minutes by receipt time, and have source timestamps within 90 seconds of one another. Negative solar values and a negative resulting site load are rejected as inconsistent. The result records its formula, input values, source labels and timestamp alignment.
+
+Important: the module does not decide what provider fields mean. Provider adapters must independently verify field semantics and normalize signs before calling it. Tibber Pulse net grid exchange alone cannot distinguish PV generation from battery discharge. Do not connect the calculation to the current live dashboard until Huawei PV and Emaldo battery power are available and their sign/unit semantics are verified. EV charging is a component of site load, not an additional supply term.
+
 ## Migration plan — preserve data first
 
 Implement in small, testable stages:
