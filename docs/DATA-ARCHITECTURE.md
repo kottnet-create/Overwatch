@@ -250,3 +250,17 @@ Rules:
 - A valid future series can be usable even when there is no current interval; currentPriceAvailable is reported separately.
 
 This is a quality assessment of the cached Spotpris.nu / Nord Pool data, not an independent verification of Nord Pool's upstream market publication. It does not change the displayed price series or graph.
+
+
+## Aggregate read-only source status API — 2026-11-26
+
+GET /api/status returns a generatedAt timestamp, a summary count, and normalized source status entries for Tibber, myUplink/NIBE, and Nord Pool/Spotpris.nu. It composes the existing provider-neutral quality adapters and reads existing in-memory status / stored NIBE history only.
+
+The endpoint:
+- Does not initiate provider refreshes or polling.
+- Does not expose OAuth tokens, API keys, passwords or raw provider payloads.
+- Keeps NIBE connection=unknown when only a stored OAuth token is known; its source is not marked usable.
+- Reports each provider separately so one provider's unavailable state does not turn missing readings into zero.
+- Is GET-only and follows the server's existing localhost-only and no-store security behavior.
+
+The endpoint is an initial backend status surface. It is not yet consumed by the dashboard. Automated route tests cover the three-provider response, unavailable sources, summary counts and absence of token fields.
