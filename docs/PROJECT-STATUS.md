@@ -223,3 +223,20 @@ Next implementation step:
 4. Migrate old Tibber JSON only through an explicit non-destructive migration, retaining the source files until verified.
 
 Existing data/history.json, data/tibber-history.json, data/tibber-prices.json and data/overwatch.sqlite must remain untouched during the initial shared-store implementation. Tests must use temporary databases.
+
+
+## Shared measurement store implementation — 2026-11-25
+
+Current implementation progress is recorded in docs/DATA-ARCHITECTURE.md.
+
+Completed on overwatch-foundation:
+- Added measurement-store.mjs. It reuses the existing measurements schema, writes batches transactionally, preserves source_at and received_at separately, skips missing/non-numeric values, and supports bounded history/latest queries and retention cleanup.
+- Refactored nibe-history.mjs to use the shared store while preserving its existing response shapes and 30-day retention.
+- Added test/measurement-store.test.mjs with five focused tests.
+
+Validation performed in an isolated Node.js 22.16 environment:
+- Shared store smoke tests passed.
+- NIBE shared-store compatibility smoke test passed.
+- The complete repository npm test suite has not yet been run after these commits. User should run npm.cmd test locally before any further live-data changes.
+
+No live local data was migrated or modified. Tibber remains on data/tibber-history.json and price cache remains data/tibber-prices.json. Next step is to run the full existing test suite, then migrate Tibber writes with response compatibility and a non-destructive legacy-history migration. Do not change the current loopback-only server access policy in this storage task.
