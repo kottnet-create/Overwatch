@@ -74,3 +74,18 @@ test('rejects malformed NIBE timestamps and units without inventing values', () 
   assert.equal(result.dataQuality, 'invalid');
   assert.equal(result.counts.invalid, 1);
 });
+
+test('assesses only the newest stored sample for each NIBE point', () => {
+  const older = sample('BT6', -10 * 60 * 1000, -10 * 60 * 1000);
+  const newer = sample('BT6');
+  const other = sample('BT50');
+  const result = assessNibeSource({
+    accountStatus: {connected: true},
+    latestMeasurements: [newer, older, other],
+    now,
+  });
+  assert.equal(result.readingCount, 2);
+  assert.equal(result.counts.fresh, 2);
+  assert.equal(result.counts.stale, 0);
+  assert.equal(result.readings.length, 2);
+});
