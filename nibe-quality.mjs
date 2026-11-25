@@ -2,8 +2,8 @@ import {assessReadingQuality} from './data-quality.mjs';
 
 /**
  * Assess locally stored myUplink/NIBE samples without confusing a saved OAuth
- * token with a verified live API connection. myUplink's current status route
- * only confirms that credentials are stored, so connection remains unknown.
+ * token with a verified live API connection. The aggregate status path supplies
+ * the result of a read-only live myUplink systems query.
  */
 export function assessNibeSource({accountStatus, latestMeasurements = [], now = Date.now(), maxReadingAgeMs = 7 * 60 * 1000} = {}) {
   const configured = accountStatus?.configured === true || accountStatus?.connected === true;
