@@ -235,3 +235,18 @@ Each latest measurement is assessed independently using:
 The adapter returns per-point quality, counts of fresh/stale/invalid/missing readings, and an aggregate dataQuality. Mixed categories are reported as partial. usable remains false until live connection verification and provider/metric-specific suitability are implemented.
 
 The adapter does not change OAuth, myUplink polling, NIBE collection cadence, SQLite history, point selection, or dashboard/API routes. Tests in test/nibe-quality.test.mjs cover configured-but-unverified connection, fresh/stale/mixed/missing/invalid readings.
+
+
+## Nord Pool / SE3 price quality adapter — 2026-11-26
+
+nordpool-quality.mjs exports assessNordPoolSource(status, {now, maxAgeMs}). It assesses the existing createNordPoolPrices().getStatus() snapshot without changing fetching, cache, conversion, retry or API behavior.
+
+Rules:
+- Snapshot freshness is based on fetchedAt, with a 30-minute default maximum age.
+- Future price interval startsAt timestamps are valid and expected; they are not treated as future-dated measurements.
+- The full series must contain at least one interval, every interval must have a finite numeric priceSekPerKwh and a parseable startsAt, and market metadata must be SE3 / SEK / SEK-per-kWh.
+- A missing snapshot is missing; an old snapshot is stale; malformed intervals or market metadata are invalid.
+- An upstream refresh error is preserved as connection=error and makes the source unusable even if an older cached series remains available for display.
+- A valid future series can be usable even when there is no current interval; currentPriceAvailable is reported separately.
+
+This is a quality assessment of the cached Spotpris.nu / Nord Pool data, not an independent verification of Nord Pool's upstream market publication. It does not change the displayed price series or graph.
