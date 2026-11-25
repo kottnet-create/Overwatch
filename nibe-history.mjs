@@ -4,7 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 
 const RETENTION_DAYS=30;
 const MAX_HOURS=24*30;
-const isWantedPoint=name=>!/\\boffset\\b/i.test(String(name||''))&&(/\\bBT(?:1|2|3|6|7|10|11|12|50)\\b/i.test(String(name||''))||/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|kompressor.*hastighet/i.test(String(name||'')));
+const isWantedPoint=name=>!/\boffset\b/i.test(String(name||''))&&(/\bBT(?:1|2|3|6|7|10|11|12|50)\b/i.test(String(name||''))||/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|kompressor.*hastighet/i.test(String(name||'')));
 
 function asIso(value,fallback){
  if(value===undefined||value===null||value==='')return fallback;
