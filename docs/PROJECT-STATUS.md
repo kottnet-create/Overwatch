@@ -366,4 +366,4 @@ Updated:
 - test/nibe-quality.test.mjs: regression test for live connected status with an unchanged older source timestamp and fresh poll receipt.
 - docs/DATA-ARCHITECTURE.md updated.
 
-Local Windows tests have not yet been run. Pull branch and run npm.cmd test. Then restart the server and inspect /api/status. No NIBE controls, data deletion or migration were performed.
+Local Windows tests have not yet been run. Pull branch and run npm.cmd test. Expected suite size after the added live-status route regression test: 48 tests. Then restart the server and inspect /api/status. No NIBE controls, data deletion or migration were performed.
