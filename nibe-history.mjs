@@ -33,7 +33,6 @@ export function createNibeHistory({dbPath=path.join(process.cwd(),'data','overwa
   CREATE INDEX IF NOT EXISTS idx_measurements_source_time ON measurements(source, source_at);
   CREATE INDEX IF NOT EXISTS idx_measurements_device_parameter_time ON measurements(device_id, parameter_id, source_at);
  `);
- db.prepare(`DELETE FROM measurements WHERE source='myUplink'`).run();
  const insert=db.prepare(`INSERT OR IGNORE INTO measurements
   (source,system_id,device_id,parameter_id,parameter_name,value,unit,source_at,received_at)
   VALUES (?,?,?,?,?,?,?,?,?)`);
