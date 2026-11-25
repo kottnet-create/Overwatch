@@ -47,6 +47,8 @@ test('does not turn missing, stale, misaligned or invalid readings into zero', (
   assert.equal(calculateEnergyBalance({...base, solarPower: reading(2000, 'solar', 0, 0)}).available, true);
   assert.equal(calculateEnergyBalance({...base, solarPower: reading(-1)}).reason, 'solar_negative');
   assert.equal(calculateEnergyBalance({...base, batteryNetPower: reading(-5000)}).reason, 'energy_balance_inconsistent');
+  assert.equal(calculateEnergyBalance({...base, solarPower: {...reading(2000), sourceAt: '2026-02-30T12:00:00.000Z'}}).reason, 'solar_invalid_timestamp');
+  assert.equal(calculateEnergyBalance({...base, gridNet: reading(1000, 'grid', -240000)}).reason, 'grid_stale');
 });
 
 test('requires watts and valid source and receipt timestamps', () => {
