@@ -348,3 +348,8 @@ Added GET /api/status in server.mjs. It composes the Tibber, NIBE and Nord Pool 
 Added test/status-api.test.mjs with route tests for all three providers, unavailable/missing providers, summary counts and token non-disclosure.
 
 Local Windows test execution is pending. Expected suite size after this change: 45 tests. Pull the development branch and run npm.cmd test before treating the endpoint as verified. Dashboard does not consume /api/status yet.
+
+
+## NIBE status response compacting — 2026-11-26
+
+The first live /api/status response exposed that nibeHistory.getLatest() returns a bounded set of recent history rows (up to 499), not one latest row per parameter. The NIBE quality adapter now deduplicates by parameterId/parameterName and assesses only the newest received sample for each point. This keeps the aggregate status response compact and prevents old historical samples from dominating the current per-point quality assessment. Added a regression test. Local verification pending.
