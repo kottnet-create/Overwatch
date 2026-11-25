@@ -1,6 +1,6 @@
 # Overwatch — project status and chat handoff
 
-Last updated: 2026-11-25
+Last updated: 2026-11-26
 
 > This file is the quick-start memory for future development sessions. It summarizes the current project direction and points to the detailed technical plan. It is not a substitute for inspecting the actual code before editing it.
 
@@ -240,3 +240,33 @@ Validation performed in an isolated Node.js 22.16 environment:
 - The complete repository npm test suite has not yet been run after these commits. User should run npm.cmd test locally before any further live-data changes.
 
 No live local data was migrated or modified. Tibber remains on data/tibber-history.json and price cache remains data/tibber-prices.json. Next step is to run the full existing test suite, then migrate Tibber writes with response compatibility and a non-destructive legacy-history migration. Do not change the current loopback-only server access policy in this storage task.
+
+
+## Energy-flow and data-quality foundation — 2026-11-26
+
+Branch: `overwatch-foundation`. The branch was inspected before this work; the starting head was `654b0797a16704187596b81ce1b105a2d0c9d1d0`. No changes were made to `main`.
+
+Added:
+- `energy-flow.mjs`: pure backend calculation for normalized grid, PV and battery power readings. It uses explicit sign conventions and refuses to derive site load when values are missing, stale, misaligned, invalid or physically inconsistent.
+- `test/energy-flow.test.mjs`: focused tests for energy-balance arithmetic, sign handling, missing/stale inputs, timestamp skew and unit validation.
+- `docs/DATA-ARCHITECTURE.md`: documents the energy-flow contract and explicitly states that the calculation is not yet connected to live provider data.
+
+Calculation contract:
+- Grid: positive import, negative export.
+- Solar: non-negative generation.
+- Battery: positive discharge, negative charge.
+- Derived site load = solar + grid net + battery net.
+- All inputs must be W, have valid source/receipt timestamps, be received within 3 minutes and have source timestamps within 90 seconds.
+- Provider adapters must verify provider field semantics before normalizing. Tibber Pulse net grid flow alone cannot identify whether export is from PV or battery.
+
+Validation status:
+- GitHub writes completed on `overwatch-foundation`.
+- Tests have NOT yet been run locally against the user's Windows checkout.
+- The new calculation module is not wired into the live dashboard or provider integrations.
+- Existing NIBE/Tibber behavior and local data files have not been changed by this work.
+- Do not claim live whole-home load calculation is available until Huawei PV and Emaldo battery measurements are available and verified.
+
+Next step:
+1. User runs `git fetch origin` and `git merge --ff-only origin/overwatch-foundation`.
+2. Run `npm.cmd test` and share the result.
+3. If tests pass, add a separate provider-neutral data-quality/status layer before connecting live normalized readings to the energy calculation.
