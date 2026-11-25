@@ -176,3 +176,8 @@ The garage camera's ONVIF pan/tilt and preset save/recall were verified with Age
 4. Restart Overwatch. Open the Cameras page and use the garage PTZ arrows or save/recall preset controls.
 
 Movement buttons issue short bounded movements. The API is local-host-only and accepts only same-host browser origins. Presets are stored on the camera itself. Zoom is intentionally not included in this first UI iteration. This integration has not yet been runtime-tested against the user's camera from the Overwatch server; verify one small movement before relying on it.
+
+
+## Project documentation
+
+For the current project state and handoff between development sessions, start with [docs/PROJECT-STATUS.md](docs/PROJECT-STATUS.md). The detailed technical decisions, integration research, camera notes and open questions are in [docs/OVERWATCH-PLAN.md](docs/OVERWATCH-PLAN.md). See also [the connections guide](docs/CONNECTIONS.md) and [the data format](docs/DATA-FORMAT.md).
