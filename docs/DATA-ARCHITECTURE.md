@@ -273,3 +273,10 @@ The aggregate /api/status route now calls myUplink's read-only /v2/systems/me th
 For NIBE point quality, receivedAt represents when Overwatch polled the current point snapshot. The provider's source timestamp is retained separately as sourceAgeMs because it may describe when a value last changed, not when the current snapshot was retrieved. Snapshot freshness uses receivedAt with a seven-minute limit, consistent with five-minute polling. The source timestamp remains visible for diagnostics and is not discarded.
 
 NIBE is usable only when the live connection was verified recently and at least one current point snapshot is fresh. A stale or failed live connection remains unavailable. No provider writes or control operations are performed.
+
+
+## NIBE per-point history quality endpoint — 2026-11-26
+
+Added GET /api/myuplink/history/quality?hours=720 as a read-only diagnostic view over the existing measurements table. The requested window is bounded by the shared store to 1–720 hours (default 720). It returns one entry per NIBE source/device/parameter with sampleCount, firstReceivedAt, lastReceivedAt, the latest stored value/unit/sourceAt/receivedAt, ageMs and a simple quality label. A point is fresh when its latest poll receipt is no older than seven minutes; otherwise it is stale. The response also includes aggregate fresh/stale counts and generatedAt.
+
+This is a history coverage/recency diagnostic, not proof that the underlying sensor value has physically changed. An unchanged source timestamp is retained as metadata; fresh receipt time shows that Overwatch continues to poll the point. Existing history endpoints and response shapes are unchanged. No migration, deletion, provider write or live database operation was performed by this code change. Tests use temporary SQLite databases.
