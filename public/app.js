@@ -8,7 +8,7 @@ const unitLabel=unit=>unit==='W'?'kW':unit;
 const powerDisplay=n=>Number.isFinite(n)?(Math.abs(n)<1000?Math.round(n)+' W':(n/1000).toFixed(2)+' kW'):'—';
 function message(s){text('message',s);}
 function show(next){view=['overview','thermal','history','connections','cameras','connect'].includes(next)?next:'overview';document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!==view);document.querySelectorAll('[data-view]').forEach(b=>{if(b.dataset.view===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});text('page-title',({overview:C.title||'Home, in view.',thermal:'Heating, understood.',history:'A little perspective.',connections:'Your connected systems.',cameras:'Cameras around your home.',connect:'Make it yours.'})[view]);render();}
-function card(label,n,unit,note,kind='') {const el=document.createElement('article');el.className='card energy-card '+kind;const l=document.createElement('div');l.className='label';l.textContent=label;const r=document.createElement('div');r.className='reading';r.textContent=unit==='W'?powerDisplay(n):value(n,unit);if(unit!=='W'){const u=document.createElement('small');u.textContent=unitLabel(unit);r.append(u);}const p=document.createElement('p');p.textContent=note;el.append(l,r,p);return el;}
+function card(label,n,unit,note,kind='') {const el=document.createElement('article');el.className='card energy-card '+kind;const l=document.createElement('div');l.className='label';l.textContent=label;const r=document.createElement('div');r.className='reading';r.textContent=typeof n==='string'?n:unit==='W'?powerDisplay(n):value(n,unit);if(unit!=='W'){const u=document.createElement('small');u.textContent=unitLabel(unit);r.append(u);}const p=document.createElement('p');p.textContent=note;el.append(l,r,p);return el;}
 function subset(hours=24){const to=Date.parse(data.samples.at(-1).at);return data.samples.filter(s=>Date.parse(s.at)>=to-hours*3600000);}
 function chart(id,keys,samples){const el=$(id);el.replaceChildren();const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label',keys.map(k=>M.metrics[k].label).join(' and ')+' over time');
  const finite=samples.flatMap(s=>keys.map(k=>s.values[k])).filter(Number.isFinite);if(!finite.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='No readings in this range.';el.append(empty);return}
@@ -155,7 +155,7 @@ async function refreshTibber(){
   $('tibber-power').textContent=live?kw(live.power):'—';
   $('tibber-average').textContent=live?kw(live.averagePower):'—';
   $('tibber-peak').textContent=live?kw(live.maxPower):'—';
-  $('tibber-solar').textContent=live?kw(live.powerProduction):'—';
+  $('tibber-solar').textContent='Unavailable';
   if(live){
    const when=new Date(live.timestamp).toLocaleString();
    detail.textContent=(status.homeName||'Tibber home')+' · Measurement '+when+' · '+(status.stale?'Latest reading is older than 3 minutes.':'Live data received.')+' Saved locally: '+(status.historyCount||0)+' samples at 5-minute intervals. '+(status.historyError||'Other device data is not connected yet.');
@@ -173,11 +173,11 @@ async function refreshTibber(){
 function tibberChart(id,samples,hours=24){
  const el=$(id);el.replaceChildren();
  const end=Date.now(),start=end-hours*3600000,rows=samples.filter(s=>Date.parse(s.timestamp)>=start&&Date.parse(s.timestamp)<=end);
- const keys=[{key:'power',label:'Tibber power',color:'#ff7a24'},{key:'powerProduction',label:'PV production',color:'#63a9d8'}];
+ const keys=[{key:'power',label:'Tibber grid power',color:'#ff7a24'}];
  const values=rows.flatMap(s=>keys.map(k=>s[k.key])).filter(Number.isFinite);
  if(rows.length<2||!values.length){const empty=document.createElement('div');empty.className='empty';empty.textContent=rows.length?'Collecting more live samples for this chart.':'Tibber history is being collected. Keep Overwatch running.';el.append(empty);return;}
  let min=Math.min(...values),max=Math.max(...values);const spread=max-min;const pad=spread>0?spread*.12:Math.max(Math.abs(max)*.12,1);min-=pad;max+=pad;
- const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label','Tibber power and reported solar production history');
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label','Tibber grid power history');
  const add=(tag,attrs,txt)=>{const e=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(txt!==undefined)e.textContent=txt;svg.append(e);return e;};
  for(let i=0;i<=3;i++){const y=20+i*58;add('line',{x1:48,x2:780,y1:y,y2:y,stroke:'#35432f'});add('text',{x:2,y:y+4},((max-i*(max-min)/3)/1000).toFixed(1));}
  for(const k of keys){let segment=[],prev=null;const flush=()=>{if(segment.length>1)add('polyline',{points:segment.map(p=>p.join(',')).join(' '),fill:'none',stroke:k.color,'stroke-width':2,'stroke-linejoin':'round'});segment=[];};for(const s of rows){const n=s[k.key],at=Date.parse(s.timestamp);if(!Number.isFinite(n)){flush();prev=null;continue;}if(prev!==null&&at-prev>10*60*1000)flush();segment.push([48+(at-start)/Math.max(1,end-start)*732,20+(max-n)/(max-min)*174]);prev=at;}flush();}
@@ -276,7 +276,7 @@ function render(){
  if(live){
   $('energy-cards').replaceChildren(
    card('TIBBER POWER',t.power,'W','Live reading from the main meter.','grid'),
-   card('SOLAR PRODUCTION',t.powerProduction,'W','Reported by Tibber, if available.','solar'),
+   card('SOLAR PRODUCTION','Unavailable','W','Huawei SUN2000 · API access pending.','solar'),
    card('AVERAGE POWER',t.averagePower,'W','Tibber live-measurement average.','load'),
    card('PEAK POWER',t.maxPower,'W','Tibber live-measurement peak.','battery')
   );
