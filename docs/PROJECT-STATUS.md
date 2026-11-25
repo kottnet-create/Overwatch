@@ -301,3 +301,14 @@ Next step:
 2. Run npm.cmd test and share the full result.
 3. Fix any failures before integrating the module into Tibber, myUplink or Nord Pool.
 4. Only after tests pass, map existing provider statuses into the common contract in small, separately tested changes. Leave Huawei, Emaldo and Zaptec unavailable until access is verified.
+
+
+## Tibber data-quality adapter — 2026-11-26
+
+Added:
+- tibber-quality.mjs: maps the existing Tibber monitor status and latest live power sample into the shared data-quality contract.
+- test/tibber-quality.test.mjs: five adapter tests.
+
+The adapter only assesses Tibber live power as a W reading with source and receipt timestamps. It does not infer PV production, battery flow or import/export sign semantics. It does not change Tibber collection, WebSocket lifecycle, history storage, API routes or dashboard. It is not yet exposed to the UI.
+
+Local Windows test execution is pending. Next step: pull the branch and run npm.cmd test; after passing, consider a read-only aggregate status endpoint. Other providers remain unadapted.
