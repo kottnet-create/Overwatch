@@ -219,3 +219,19 @@ Mapping:
 The adapter assesses data validity/freshness only. It deliberately does not interpret Tibber power as solar generation, battery flow, or a signed import/export value. It does not change Tibber polling, WebSocket handling, storage, history, or API routes. It is not yet exposed through a new endpoint or dashboard.
 
 Tests in test/tibber-quality.test.mjs cover connected/fresh, connected/missing, stale, unconfigured and malformed readings.
+
+
+## First myUplink / NIBE adapter — 2026-11-26
+
+nibe-quality.mjs exports assessNibeSource({accountStatus, latestMeasurements, now, maxReadingAgeMs}). It evaluates locally stored latest NIBE measurements using the shared assessReadingQuality helper.
+
+Important limitation: the existing /api/myuplink/status route only reports whether an OAuth access token is stored. It does not perform a live API request. Therefore the adapter reports connection='unknown' when credentials are present, not 'connected'. It reports not_configured when no account token is present. A live successful API contact cannot currently be inferred from the stored history.
+
+Each latest measurement is assessed independently using:
+- value and unit from the NIBE history row;
+- sourceAt from sourceTimestamp;
+- receivedAt from receivedAt (or timestamp fallback).
+
+The adapter returns per-point quality, counts of fresh/stale/invalid/missing readings, and an aggregate dataQuality. Mixed categories are reported as partial. usable remains false until live connection verification and provider/metric-specific suitability are implemented.
+
+The adapter does not change OAuth, myUplink polling, NIBE collection cadence, SQLite history, point selection, or dashboard/API routes. Tests in test/nibe-quality.test.mjs cover configured-but-unverified connection, fresh/stale/mixed/missing/invalid readings.
