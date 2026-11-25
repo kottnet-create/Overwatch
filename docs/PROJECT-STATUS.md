@@ -353,3 +353,17 @@ Local Windows test execution is pending. Expected suite size after this change: 
 ## NIBE status response compacting — 2026-11-26
 
 The first live /api/status response exposed that nibeHistory.getLatest() returns a bounded set of recent history rows (up to 499), not one latest row per parameter. The NIBE quality adapter now deduplicates by parameterId/parameterName and assesses only the newest received sample for each point. This keeps the aggregate status response compact and prevents old historical samples from dominating the current per-point quality assessment. Added a regression test. Local verification pending.
+
+
+## NIBE live status correction — 2026-11-26
+
+User verified GET /api/myuplink/systems returns connected=true and device connectionState=Connected for Nibe F1255. The aggregate status was incorrectly hardcoding NIBE connection=unknown because it only inspected local token status.
+
+Updated:
+- myuplink.mjs: added read-only connectionStatus() calling /v2/systems/me and mapping device connectionState.
+- server.mjs: GET /api/status awaits live connectionStatus(); errors become an explicit error state.
+- nibe-quality.mjs: consumes live state and lastSuccessAt; NIBE snapshot freshness uses receivedAt (poll time), while sourceTimestamp is retained as sourceAgeMs because it can represent last value change. Seven-minute snapshot freshness aligns with five-minute polling.
+- test/nibe-quality.test.mjs: regression test for live connected status with an unchanged older source timestamp and fresh poll receipt.
+- docs/DATA-ARCHITECTURE.md updated.
+
+Local Windows tests have not yet been run. Pull branch and run npm.cmd test. Then restart the server and inspect /api/status. No NIBE controls, data deletion or migration were performed.
