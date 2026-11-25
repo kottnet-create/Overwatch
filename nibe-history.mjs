@@ -44,6 +44,7 @@ export function createNibeHistory({dbPath=path.join(process.cwd(),'data','overwa
    });
    inserted+=result.inserted;seen+=measurements.length;
   }
+  store.prune();
   return {inserted,seen,retentionDays:RETENTION_DAYS,receivedAt};
  }
  function getHistory(hours=24){
