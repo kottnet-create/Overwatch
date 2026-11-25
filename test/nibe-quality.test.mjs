@@ -37,7 +37,7 @@ test('reports fresh NIBE history measurements without claiming live connection',
 test('identifies stale NIBE history separately from account configuration', () => {
   const result = assessNibeSource({
     accountStatus: {connected: true},
-    latestMeasurements: [sample('BT6', -5 * 60 * 1000, -5 * 60 * 1000)],
+    latestMeasurements: [sample('BT6', -8 * 60 * 1000, -8 * 60 * 1000)],
     now,
   });
   assert.equal(result.connection, 'unknown');
@@ -48,7 +48,7 @@ test('identifies stale NIBE history separately from account configuration', () =
 test('reports mixed freshness as partial and retains per-point detail', () => {
   const result = assessNibeSource({
     accountStatus: {connected: true},
-    latestMeasurements: [sample('BT6'), sample('BT50', -5 * 60 * 1000, -5 * 60 * 1000)],
+    latestMeasurements: [sample('BT6'), sample('BT50', -8 * 60 * 1000, -8 * 60 * 1000)],
     now,
   });
   assert.equal(result.dataQuality, 'partial');
@@ -65,14 +65,15 @@ test('reports missing history and an unconfigured account distinctly', () => {
   assert.equal(unconfigured.configured, false);
 });
 
-test('rejects malformed NIBE timestamps and units without inventing values', () => {
+test('retains malformed source timestamps as diagnostic metadata without losing a fresh snapshot', () => {
   const result = assessNibeSource({
     accountStatus: {connected: true},
     latestMeasurements: [{...sample('BT6'), sourceTimestamp: 'bad'}],
     now,
   });
-  assert.equal(result.dataQuality, 'invalid');
-  assert.equal(result.counts.invalid, 1);
+  assert.equal(result.dataQuality, 'fresh');
+  assert.equal(result.counts.fresh, 1);
+  assert.equal(result.readings[0].sourceAgeMs, null);
 });
 
 test('assesses only the newest stored sample for each NIBE point', () => {
