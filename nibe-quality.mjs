@@ -7,7 +7,20 @@ import {assessReadingQuality} from './data-quality.mjs';
  */
 export function assessNibeSource({accountStatus, latestMeasurements = [], now = Date.now(), maxReadingAgeMs = 3 * 60 * 1000} = {}) {
   const configured = accountStatus?.connected === true;
-  const readings = (Array.isArray(latestMeasurements) ? latestMeasurements : []).map(sample => {
+  // getLatest() currently returns a bounded history window, not one row per
+  // parameter. Keep only the newest received sample for each NIBE point.
+  const newestByPoint = new Map();
+  for (const sample of (Array.isArray(latestMeasurements) ? latestMeasurements : [])) {
+    const key = String(sample?.parameterId ?? sample?.parameterName ?? '');
+    if (!key) continue;
+    const previous = newestByPoint.get(key);
+    const received = Date.parse(sample?.receivedAt || sample?.timestamp || '');
+    const previousReceived = Date.parse(previous?.receivedAt || previous?.timestamp || '');
+    if (!previous || (Number.isFinite(received) && (!Number.isFinite(previousReceived) || received >= previousReceived))) {
+      newestByPoint.set(key, sample);
+    }
+  }
+  const readings = [...newestByPoint.values()].map(sample => {
     const quality = assessReadingQuality({
       value: sample?.value,
       unit: sample?.unit,
