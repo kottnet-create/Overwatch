@@ -141,3 +141,30 @@ test('retention and query windows are bounded and enforced', () => {
     fs.rmSync(temp.directory, {recursive: true, force: true});
   }
 });
+
+test('per-point statistics report sample counts and newest receipt metadata', () => {
+  const temp = temporaryDatabase();
+  let now = Date.parse('2026-11-25T12:10:00.000Z');
+  const store = createMeasurementStore({dbPath: temp.dbPath, now: () => now});
+  try {
+    store.recordBatch({
+      source: 'myUplink', systemId: 'system-1', deviceId: 'device-1',
+      measurements: [measurement({sourceAt: '2026-11-25T11:59:00.000Z'})],
+    });
+    now += 5 * 60 * 1000;
+    store.recordBatch({
+      source: 'myUplink', systemId: 'system-1', deviceId: 'device-1',
+      measurements: [measurement({value: 44.1, sourceAt: '2026-11-25T11:59:00.000Z'})],
+    });
+    const result = store.getPointStats({source: 'myUplink', hours: 24});
+    assert.equal(result.count, 1);
+    assert.equal(result.points[0].sampleCount, 2);
+    assert.equal(result.points[0].value, 44.1);
+    assert.equal(result.points[0].unit, '°C');
+    assert.equal(result.points[0].firstReceivedAt, '2026-11-25T12:10:00.000Z');
+    assert.equal(result.points[0].lastReceivedAt, '2026-11-25T12:15:00.000Z');
+  } finally {
+    store.close();
+    fs.rmSync(temp.directory, {recursive: true, force: true});
+  }
+});
