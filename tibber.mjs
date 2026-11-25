@@ -8,7 +8,6 @@ const API_URL = 'https://api.tibber.com/v1-beta/gql';
 const USER_AGENT = 'Overwatch/0.1.0 (Node.js home-energy-monitor)';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(ROOT, 'data', 'tibber-history.json');
-const SAMPLE_INTERVAL_MS = 5 * 60 * 1000;
 const LIVE_QUERY = `subscription OverwatchLiveMeasurement($homeId: ID!) {
   liveMeasurement(homeId: $homeId) {
     timestamp
