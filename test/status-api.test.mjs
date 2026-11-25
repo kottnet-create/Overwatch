@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createServer} from '../server.mjs';
 
-const now = Date.parse('2026-11-26T12:00:00.000Z');
+const now = Date.now();
 function makeServer(overrides = {}) {
   const tibberMonitor = {
     getStatus: () => ({
