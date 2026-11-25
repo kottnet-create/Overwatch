@@ -17,7 +17,8 @@ Last updated: 2026-11-25
 1. [Technical plan and detailed decisions](OVERWATCH-PLAN.md) — provider status, energy model, cameras, network notes, hardware plans and open questions.
 2. [Connections guide](CONNECTIONS.md) — adapter boundary, credential handling and local-only architecture.
 3. [Data format](DATA-FORMAT.md) — schema 1, metric keys, units, timestamp and freshness rules.
-4. [Repository README](../README.md) — actual application features and local run instructions.
+4. [Data architecture](DATA-ARCHITECTURE.md) — shared SQLite storage design, migration stages, retention, backups and secure multi-screen access.
+5. [Repository README](../README.md) — actual application features and local run instructions.
 
 ## Product goal
 
@@ -198,3 +199,27 @@ To reduce information loss across conversations, use a checkpoint after approxim
 5. Also prepare a checkpoint sooner after a major milestone or when a chat is becoming long; do not wait for the 10-chat mark if that risks losing information.
 
 Limitation: ChatGPT cannot reliably count all separate chats in the background, monitor chat creation, or trigger a summary automatically at exactly chat number 10. Treat this as a collaboration procedure, not an automatic scheduled trigger. If the count is uncertain, make a checkpoint when the user asks or when a substantial milestone is reached.
+
+
+## Backend and storage review — 2026-11-25
+
+Reviewed the current implementation on the active branch. The branch head at review time was b7920c3588ec07a09e98fb5a2fc4718e62887f4c.
+
+Confirmed current storage paths:
+- NIBE / myUplink: data/overwatch.sqlite through nibe-history.mjs, 30-day retention, source_at and received_at timestamps.
+- Tibber live history: data/tibber-history.json, 5-minute minimum storage interval, maximum 9,000 samples.
+- Tibber spot prices: data/tibber-prices.json.
+- Generic schema-1 recorder: data/history.json, maximum 5,000 samples and 2 MB.
+- OVERWATCH_DB_PATH currently configures the NIBE SQLite database only.
+
+Added docs/DATA-ARCHITECTURE.md as a design decision for moving operational time-series data into one local SQLite database while retaining provider-specific adapters and preserving existing data. This is documentation only; no integration code or local database has been changed by this step.
+
+Important access finding: server.mjs binds to 127.0.0.1 and rejects non-local Host headers. This is intentional protection, but mobile and Fire TV access are not implemented. Do not remove these protections or bind to 0.0.0.0 until an authenticated LAN/VPN access layer and scoped UniFi rules are designed.
+
+Next implementation step:
+1. Add and test a shared SQLite storage module without changing current live integrations.
+2. Refactor NIBE to use it without changing the existing measurements table or API response.
+3. Add Tibber storage to the same database, preserving the existing /api/tibber/history response for the UI.
+4. Migrate old Tibber JSON only through an explicit non-destructive migration, retaining the source files until verified.
+
+Existing data/history.json, data/tibber-history.json, data/tibber-prices.json and data/overwatch.sqlite must remain untouched during the initial shared-store implementation. Tests must use temporary databases.
