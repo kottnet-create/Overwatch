@@ -7,6 +7,9 @@ import {createTibberMonitor} from './tibber.mjs';
 import {createNordPoolPrices} from './nordpool-prices.mjs';
 import {createMyUplink} from './myuplink.mjs';
 import {createNibeHistory} from './nibe-history.mjs';
+import {assessTibberSource} from './tibber-quality.mjs';
+import {assessNibeSource} from './nibe-quality.mjs';
+import {assessNordPoolSource} from './nordpool-quality.mjs';
 import {getPublicCameras} from './cameras.mjs';
 import {getCameraPtzStatus,getCameraPtzDiagnostics,listCameraPresets,moveCamera,stopCamera,saveCameraPreset,gotoCameraPreset,deleteCameraPreset} from './camera-ptz.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
@@ -20,6 +23,22 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   const writeRoutes={POST:new Set(['/api/cameras/garage/ptz/move','/api/cameras/garage/ptz/stop','/api/cameras/garage/ptz/presets','/api/cameras/garage/ptz/preset']),DELETE:new Set(['/api/cameras/garage/ptz/preset'])};
   if(!['GET','HEAD'].includes(req.method)&&!writeRoutes[req.method]?.has(route))return send(405,'Method not allowed.');
   if(req.method!=='GET'&&req.method!=='HEAD'){const origin=req.headers.origin;if(origin&&!/^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin))return send(403,'Cross-origin request blocked.');}
+  if(route==='/api/status'&&req.method==='GET'){
+   try{
+    let accountStatus={connected:false};
+    myUplink.status((_status,body)=>{try{accountStatus=JSON.parse(body);}catch{}});
+    const sources=[
+     assessTibberSource(tibberMonitor.getStatus()),
+     assessNibeSource({accountStatus,latestMeasurements:nibeHistory.getLatest()}),
+     assessNordPoolSource(nordPoolPrices.getStatus())
+    ];
+    const counts={usable:sources.filter(source=>source.usable).length,attention:sources.filter(source=>!source.usable).length,total:sources.length};
+    return send(200,JSON.stringify({generatedAt:new Date().toISOString(),summary:counts,sources}),'application/json');
+   }catch(error){
+    console.error('Source status aggregation failed:',error);
+    return send(503,JSON.stringify({error:'Source status is temporarily unavailable.'}),'application/json');
+   }
+  }
   if(route==='/api/cameras')return send(200,JSON.stringify({cameras:getPublicCameras()}),'application/json');
   if(route==='/api/cameras/garage/ptz/status'&&req.method==='GET')return send(200,JSON.stringify(getCameraPtzStatus()),'application/json');
   if(route==='/api/cameras/garage/ptz/diagnostics'&&req.method==='GET'){try{return send(200,JSON.stringify(await getCameraPtzDiagnostics()),'application/json');}catch(error){console.error('ONVIF PTZ diagnostics failed:',error);return send(503,JSON.stringify({error:error.message}),'application/json');}}
