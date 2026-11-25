@@ -168,3 +168,24 @@ test('per-point statistics report sample counts and newest receipt metadata', ()
     fs.rmSync(temp.directory, {recursive: true, force: true});
   }
 });
+
+test('per-point statistics detect collection gaps over ten minutes', () => {
+  const temp = temporaryDatabase();
+  let now = Date.parse('2026-11-25T12:00:00.000Z');
+  const store = createMeasurementStore({dbPath: temp.dbPath, now: () => now});
+  try {
+    const batch = {source: 'myUplink', systemId: 'system-1', deviceId: 'device-1', measurements: [measurement()]};
+    store.recordBatch(batch);
+    now += 5 * 60 * 1000;
+    store.recordBatch(batch);
+    now += 15 * 60 * 1000;
+    store.recordBatch(batch);
+    const point = store.getPointStats({source: 'myUplink', hours: 24}).points[0];
+    assert.equal(point.sampleCount, 3);
+    assert.equal(point.gapsOver10Minutes, 1);
+    assert.equal(point.maxGapMinutes, 15);
+  } finally {
+    store.close();
+    fs.rmSync(temp.directory, {recursive: true, force: true});
+  }
+});
