@@ -145,17 +145,25 @@ export function createMeasurementStore({
     let sourceClause = '';
     if (source) { sourceClause = ' AND source = ?'; params.push(safeText(source, 'source', 80)); }
     const rows = db.prepare(
-      'WITH grouped AS (' +
-      ' SELECT source, system_id, device_id, parameter_id, COUNT(*) AS sample_count,' +
-      ' MIN(received_at) AS first_received_at, MAX(received_at) AS last_received_at' +
+      'WITH filtered AS (' +
+      ' SELECT source, system_id, device_id, parameter_id, parameter_name, value, unit, source_at, received_at' +
       ' FROM measurements WHERE received_at >= ?' + sourceClause +
-      ' GROUP BY source, system_id, device_id, parameter_id' +
+      '), ordered AS (' +
+      ' SELECT *, LAG(received_at) OVER (PARTITION BY source, system_id, device_id, parameter_id ORDER BY received_at) AS previous_received_at' +
+      ' FROM filtered' +
+      '), grouped AS (' +
+      ' SELECT source, system_id, device_id, parameter_id, COUNT(*) AS sample_count,' +
+      ' MIN(received_at) AS first_received_at, MAX(received_at) AS last_received_at,' +
+      ' SUM(CASE WHEN previous_received_at IS NOT NULL AND (julianday(received_at)-julianday(previous_received_at))*86400 > 600 THEN 1 ELSE 0 END) AS gaps_over_10m,' +
+      ' MAX(CASE WHEN previous_received_at IS NOT NULL THEN (julianday(received_at)-julianday(previous_received_at))*86400 ELSE 0 END) AS max_gap_seconds' +
+      ' FROM ordered GROUP BY source, system_id, device_id, parameter_id' +
       ') SELECT g.source, g.system_id AS systemId, g.device_id AS deviceId,' +
       ' g.parameter_id AS parameterId, m.parameter_name AS parameterName,' +
       ' m.value, m.unit, m.source_at AS sourceAt, m.received_at AS receivedAt,' +
       ' g.sample_count AS sampleCount, g.first_received_at AS firstReceivedAt,' +
-      ' g.last_received_at AS lastReceivedAt' +
-      ' FROM grouped g JOIN measurements m ON m.source = g.source' +
+      ' g.last_received_at AS lastReceivedAt, g.gaps_over_10m AS gapsOver10Minutes,' +
+      ' ROUND(g.max_gap_seconds / 60.0, 2) AS maxGapMinutes' +
+      ' FROM grouped g JOIN ordered m ON m.source = g.source' +
       ' AND m.system_id = g.system_id AND m.device_id = g.device_id' +
       ' AND m.parameter_id = g.parameter_id AND m.received_at = g.last_received_at' +
       ' ORDER BY g.source, g.device_id, g.parameter_id'
