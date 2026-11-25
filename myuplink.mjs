@@ -62,6 +62,19 @@ export function createMyUplink({root=process.cwd(),fetchImpl=fetch}={}) {
    }catch(e){return send(502,page('Kunde inte slutföra anslutningen: '+String(e.message).replace(/[<>]/g,'')),'text/html; charset=utf-8');}
   },
   status(send){const t=readTokens();return json(send,200,{connected:Boolean(t?.access_token),provider:'myUplink',readOnly:true,scope:'READSYSTEM',message:t?.access_token?'myUplink account connected.':'Connect your myUplink account to begin.'});},
+  async connectionStatus(){
+   const data=await apiGet('/v2/systems/me');
+   const systems=Array.isArray(data)?data:(data.systems||data.items||[]);
+   const devices=systems.flatMap(system=>(system.devices||[]).map(device=>({
+    systemName:system.name||null,
+    deviceName:device.name||device.deviceName||null,
+    connectionState:device.connectionState||device.status||null
+   })));
+   const states=devices.map(device=>String(device.connectionState||'').toLowerCase());
+   const connected=states.some(state=>['connected','online','ready'].includes(state));
+   const disconnected=states.length>0&&states.every(state=>['disconnected','offline','closed'].includes(state));
+   return {configured:true,connectionState:connected?'connected':disconnected?'disconnected':'unknown',lastSuccessAt:new Date().toISOString(),systemCount:systems.length,deviceCount:devices.length,devices};
+  },
   async systems(send){try{const data=await apiGet('/v2/systems/me');return json(send,200,{connected:true,readOnly:true,data});}catch(e){return json(send,readTokens()?.access_token?502:401,{connected:false,readOnly:true,error:e.message});}},
   async fetchPointData(){
    const response=await apiGet('/v2/systems/me');
