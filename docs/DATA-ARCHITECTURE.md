@@ -202,3 +202,20 @@ usable is true only when the provider is configured, connection state is connect
 ### Tests
 
 test/data-quality.test.mjs covers fresh, missing, invalid, wrong-unit, stale and future-dated readings; connection-state mapping; independent connection freshness; combined usability; and unconfigured providers. Local Windows test execution is pending.
+
+
+## First provider adapter: Tibber — 2026-11-26
+
+tibber-quality.mjs exports assessTibberSource(status, {now}). It adapts the existing createTibberMonitor().getStatus() shape to buildSourceStatus in data-quality.mjs.
+
+Mapping:
+- configured <- status.configured === true
+- connectionStatus <- status.status
+- latestReading.value <- status.latest.power
+- latestReading.unit <- W (Tibber monitor already normalizes live power to a finite number)
+- latestReading.sourceAt <- status.latest.timestamp
+- latestReading.receivedAt <- status.receivedAt
+
+The adapter assesses data validity/freshness only. It deliberately does not interpret Tibber power as solar generation, battery flow, or a signed import/export value. It does not change Tibber polling, WebSocket handling, storage, history, or API routes. It is not yet exposed through a new endpoint or dashboard.
+
+Tests in test/tibber-quality.test.mjs cover connected/fresh, connected/missing, stale, unconfigured and malformed readings.
