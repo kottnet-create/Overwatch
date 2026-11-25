@@ -112,7 +112,7 @@ test('GET /api/status uses verified live myUplink device connection', async () =
 test('GET /api/myuplink/history/quality returns per-point diagnostics', async () => {
   const quality = {
     hours: 720, retentionDays: 30, count: 1,
-    points: [{parameterId: 'BT7', parameterName: 'Varmvatten topp (BT7)', value: 48.5, unit: '°C', sampleCount: 120, ageMs: 1000, quality: 'fresh'}],
+    points: [{parameterId: 'BT7', parameterName: 'Varmvatten topp (BT7)', value: 48.5, unit: '°C', sampleCount: 120, gapsOver10Minutes: 2, maxGapMinutes: 15, ageMs: 1000, quality: 'fresh'}],
     counts: {fresh: 1, stale: 0},
     generatedAt: new Date().toISOString(),
   };
@@ -125,6 +125,8 @@ test('GET /api/myuplink/history/quality returns per-point diagnostics', async ()
     assert.equal(body.hours, 24);
     assert.equal(body.points[0].parameterId, 'BT7');
     assert.equal(body.points[0].sampleCount, 120);
+    assert.equal(body.points[0].gapsOver10Minutes, 2);
+    assert.equal(body.points[0].maxGapMinutes, 15);
     assert.equal(body.counts.fresh, 1);
   } finally {
     await new Promise(resolve => server.close(resolve));
