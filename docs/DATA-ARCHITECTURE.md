@@ -1,6 +1,6 @@
 # Overwatch — measurement storage architecture
 
-Status: design decision, not yet implemented.
+Status: partially implemented. Shared storage module and NIBE adapter refactor are committed; Tibber migration is pending.
 Branch: overwatch-foundation
 Date: 2026-11-25
 
@@ -122,3 +122,20 @@ The Fire TV Stick should act as a browser/display client only. All provider conn
 - Tests use temporary databases and do not touch the user's real data/overwatch.sqlite.
 - Existing JSON histories remain recoverable until migration is explicitly verified.
 - No secrets or private data enter Git.
+
+
+## Implementation progress
+
+### Completed on 2026-11-25
+
+- Added measurement-store.mjs with a shared SQLite API for batch inserts, bounded history/latest queries, source-filtered statistics, and retention cleanup.
+- The module reuses the existing measurements table and index names, so it can open the current NIBE database without recreating or replacing its data.
+- Refactored nibe-history.mjs to use the shared module while retaining the existing NIBE API response shape, 30-day retention, BT point filtering, and separate source/receipt timestamps.
+- Added test/measurement-store.test.mjs with five tests covering persistence/reopen, duplicate delivery versus later polls, missing values and atomic rollback, reuse of a pre-existing NIBE table, and retention/query bounds.
+- Isolated Node.js 22.16 smoke tests passed for the shared store and the NIBE wrapper. The repository-wide npm test suite has not yet been run against the updated branch.
+
+### Still pending
+
+- Tibber still writes to its existing JSON history file; no Tibber code or live data has been migrated yet.
+- Existing data/overwatch.sqlite, data/tibber-history.json and data/tibber-prices.json have not been accessed or modified by these changes.
+- The shared module is currently used by NIBE only. Do not describe all integrations as unified until Tibber has been migrated and verified.
