@@ -77,5 +77,15 @@ export function createNibeHistory({dbPath=path.join(process.cwd(),'data','overwa
   const result=store.stats({source:'myUplink'});
   return {...result,retentionDays:RETENTION_DAYS};
  }
- return {record,getHistory,getLatest,stats,close:store.close};
+ function getPointStats(hours=24*RETENTION_DAYS){
+  const result=store.getPointStats({source:'myUplink',hours});
+  const currentTime=now();
+  const points=result.points.map(point=>{
+   const ageMs=Math.max(0,currentTime-Date.parse(point.receivedAt));
+   return {...point,ageMs,quality:ageMs<=7*60*1000?'fresh':'stale'};
+  });
+  const counts=points.reduce((acc,point)=>{acc[point.quality]++;return acc;},{fresh:0,stale:0});
+  return {...result,points,counts,generatedAt:new Date(currentTime).toISOString()};
+ }
+ return {record,getHistory,getLatest,getPointStats,stats,close:store.close};
 }
