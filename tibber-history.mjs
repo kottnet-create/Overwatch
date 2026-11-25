@@ -61,14 +61,14 @@ export function createTibberHistory({
     for (const [parameterId, defaultUnit] of Object.entries(FIELDS)) {
       const value = sample[parameterId];
       if (typeof value !== 'number' || !Number.isFinite(value)) continue;
-      const unit = parameterId === 'accumulatedCost'
-        ? (typeof sample.currency === 'string' ? sample.currency : '')
-        : defaultUnit;
+      if (parameterId === 'accumulatedCost' &&
+          (typeof sample.currency !== 'string' || !sample.currency.trim())) continue;
+      const unit = parameterId === 'accumulatedCost' ? sample.currency : defaultUnit;
       measurements.push({
         parameterId,
         parameterName: parameterId,
         value,
-        unit: unit || '',
+        unit,
         sourceAt: sample.timestamp,
       });
     }
