@@ -339,3 +339,12 @@ Assessment uses fetchedAt (30-minute default freshness), not interval startsAt, 
 
 No Nord Pool fetch, conversion, cache, retry, endpoint or graph behavior changed. Local Windows test execution is pending.
 Next step: pull branch, run npm.cmd test (expected 43 tests), then implement a read-only aggregate source-status endpoint.
+
+
+## Aggregate source status API — 2026-11-26
+
+Added GET /api/status in server.mjs. It composes the Tibber, NIBE and Nord Pool quality adapters and returns generatedAt, summary counts and per-provider status. It is read-only, does not trigger provider refreshes, and does not expose credential/token fields. NIBE remains connection=unknown when the only evidence is a locally stored OAuth token.
+
+Added test/status-api.test.mjs with route tests for all three providers, unavailable/missing providers, summary counts and token non-disclosure.
+
+Local Windows test execution is pending. Expected suite size after this change: 45 tests. Pull the development branch and run npm.cmd test before treating the endpoint as verified. Dashboard does not consume /api/status yet.
