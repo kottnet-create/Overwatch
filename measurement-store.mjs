@@ -61,13 +61,13 @@ export function createMeasurementStore({
   const closed = {value: false};
   function assertOpen() { if (closed.value) throw new Error('Measurement store is closed.'); }
 
-  function recordBatch({source, systemId = '', deviceId, measurements}) {
+  function recordBatch({source, systemId = '', deviceId, measurements, receivedAt: suppliedReceivedAt}) {
     assertOpen();
     source = safeText(source, 'source', 80);
     systemId = systemId === '' ? '' : safeText(systemId, 'systemId', 200);
     deviceId = safeText(deviceId, 'deviceId', 200);
     if (!Array.isArray(measurements)) throw new TypeError('measurements must be an array.');
-    const receivedAt = new Date(now()).toISOString();
+    const receivedAt = isoTimestamp(suppliedReceivedAt || new Date(now()).toISOString(), 'receivedAt');
     let inserted = 0, skipped = 0;
     db.exec('BEGIN IMMEDIATE');
     try {
