@@ -411,3 +411,10 @@ Added tests for coverage calculation and startup pruning. Local Windows test exe
 ### Local verification update — 2026-11-26
 
 The user pulled the NIBE history coverage/retention changes and ran `npm.cmd test` on Windows. Result: **53 tests passed, 0 failed**. This verifies the test suite locally. The remaining live check is to restart the local server so it loads the new code and inspect `/api/myuplink/history/quality?hours=720` for `expectedSamples`, `coveragePercent`, and `coveredHours` across the nine NIBE points. The retention implementation is covered by a startup-pruning test; a full 30-day expiry against the user's live database has not been forced or manually tested.
+
+
+## Read-only NIBE compressor point discovery — 2026-11-26
+
+Added `GET /api/myuplink/points/diagnostics`. It fetches the existing read-only myUplink point catalogue and returns only likely compressor/frequency candidates with parameter ID, name, numeric value (when available), unit and source timestamp, plus total catalogue size. This is diagnostic discovery only: candidates are not added to collection/history and no NIBE settings or device state are changed. Candidate matching is heuristic and the exact point meaning/unit must be verified before collection is enabled. Added unit and route tests. Local Windows test execution is pending.
+
+Next: pull `overwatch-foundation`, run `npm.cmd test`, then open `http://127.0.0.1:8780/api/myuplink/points/diagnostics` and share the result. Use the result to identify the correct compressor-frequency point without guessing its parameter ID.
