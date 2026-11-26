@@ -36,3 +36,30 @@ test('invalid optional numeric fields remain unavailable rather than becoming Na
   assert.equal(result.powerProduction, null);
   assert.equal(result.accumulatedConsumption, null);
 });
+test('normalizes Tibber phase currents and voltages while preserving missing values', () => {
+  const result = normalizeTibberLiveMeasurement({
+    timestamp, power: 1250,
+    currentL1: 1.7, currentL2: 1.9, currentL3: 1.2,
+    voltagePhase1: 233.8, voltagePhase2: 235.2, voltagePhase3: 236.2,
+  });
+  assert.equal(result.currentL1, 1.7);
+  assert.equal(result.currentL2, 1.9);
+  assert.equal(result.currentL3, 1.2);
+  assert.equal(result.voltagePhase1, 233.8);
+  assert.equal(result.voltagePhase2, 235.2);
+  assert.equal(result.voltagePhase3, 236.2);
+  assert.equal(normalizeTibberLiveMeasurement({timestamp, power: 1}).currentL1, null);
+});
+
+test('invalid phase measurements remain unavailable rather than becoming zero or NaN', () => {
+  const result = normalizeTibberLiveMeasurement({
+    timestamp, power: 1000, currentL1: '', currentL2: 'unknown',
+    currentL3: null, voltagePhase1: 'bad', voltagePhase2: undefined, voltagePhase3: 0,
+  });
+  assert.equal(result.currentL1, null);
+  assert.equal(result.currentL2, null);
+  assert.equal(result.currentL3, null);
+  assert.equal(result.voltagePhase1, null);
+  assert.equal(result.voltagePhase2, null);
+  assert.equal(result.voltagePhase3, 0);
+});
