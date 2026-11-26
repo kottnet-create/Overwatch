@@ -394,3 +394,15 @@ Extended GET /api/myuplink/history/quality?hours=... with two per-point fields:
 This is calculated from `received_at` using SQLite LAG/window functions. It is read-only; no schema changes, migrations or live-data modifications. It helps verify whether five-minute collection has been continuous but does not diagnose the cause of any gap.
 
 Added tests for a deliberate 15-minute collection gap and for the endpoint response fields. Local Windows tests are pending. Next: fetch/fast-forward, run `npm.cmd test`, then inspect the 720-hour quality endpoint again. Do not restart or edit the running server until the local test result is known.
+
+
+## NIBE history coverage and automatic retention — 2026-11-26
+
+Added to the per-point history quality endpoint:
+- `expectedSamples`: expected five-minute samples for the requested window (`ceil(hours * 12)`).
+- `coveragePercent`: sample count divided by expected samples, capped at 100 and rounded to two decimals.
+- `coveredHours`: elapsed time between first and latest received sample.
+
+Retention enforcement now runs when the SQLite store opens, after each batch write, and hourly from the server independently of NIBE polling. The hourly timer is unref'd and cleared on server close. Existing history API payloads and schema are unchanged; cleanup remains based on `received_at` and the 30-day NIBE retention setting.
+
+Added tests for coverage calculation and startup pruning. Local Windows test execution is pending. Next: fetch/fast-forward `overwatch-foundation`, run `npm.cmd test`, then restart the local server and inspect `/api/myuplink/history/quality?hours=720`. Do not claim the new behavior is locally verified until the test suite passes.
