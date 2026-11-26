@@ -19,6 +19,12 @@ const FIELDS = {
   maxPower: 'W',
   lastMeterProduction: 'kWh',
   lastMeterConsumption: 'kWh',
+  currentL1: 'A',
+  currentL2: 'A',
+  currentL3: 'A',
+  voltagePhase1: 'V',
+  voltagePhase2: 'V',
+  voltagePhase3: 'V',
 };
 
 function readLegacyHistory(file) {
