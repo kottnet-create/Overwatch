@@ -20,9 +20,11 @@ function chart(id,keys,samples){const el=$(id);el.replaceChildren();const ns='ht
  element('text',{x:48,y:220},new Date(first).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));element('text',{x:780,y:220,'text-anchor':'end'},new Date(end).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));el.append(svg);
 }
 
-function renderNibeHistoryChart(id,pattern,label,unit){
+const COMPRESSOR_FREQUENCY_PARAMETER_ID='43122';
+const isCompressorFrequencyPoint=p=>String(p?.parameterId??p?.id??'')===COMPRESSOR_FREQUENCY_PARAMETER_ID||/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|compressor.*speed|kompressor.*hastighet/i.test(String(p?.parameterName||p?.name||''));
+function renderNibeHistoryChart(id,pattern,label,unit,parameterId=null){
  const host=$(id);if(!host)return;host.replaceChildren();
- const rows=nibeHistoryRows.filter(p=>pattern.test(String(p.parameterName||''))&&Number.isFinite(Number(p.value))).sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));
+ const rows=nibeHistoryRows.filter(p=>(parameterId&&String(p.parameterId)===String(parameterId)||pattern.test(String(p.parameterName||'')))&&Number.isFinite(Number(p.value))).sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));
  if(!rows.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='No stored NIBE history yet. The first sample is collected when the local server starts.';host.append(empty);return;}
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label',label+' from locally stored NIBE readings');
  const vals=rows.map(p=>Number(p.value));let min=Math.min(...vals),max=Math.max(...vals);if(min===max){min-=1;max+=1;}const pad=(max-min)*.12;min-=pad;max+=pad;
@@ -72,7 +74,7 @@ function drawNibeDialog(parameterId,parameterName,unit){
  if(!dialog.open)dialog.showModal();
 }
 function makeNibeCard(p){
- const rawLabel=String(p.parameterName||p.name||p.parameterId||'NIBE input').replace(/\\boffset\\b/ig,'').replace(/\\s+/g,' ').trim(),label=/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|kompressor.*hastighet/i.test(rawLabel)?'Compressor activity':rawLabel,id=String(p.parameterId??p.id??label),unit=String(p.parameterUnit||p.unit||''),n=p.value===-32768||p.value===null||p.value===undefined?null:Number(p.value);
+ const rawLabel=String(p.parameterName||p.name||p.parameterId||'NIBE input').replace(/\\boffset\\b/ig,'').replace(/\\s+/g,' ').trim(),label=isCompressorFrequencyPoint(p)?'Compressor activity':rawLabel,id=String(p.parameterId??p.id??label),unit=String(p.parameterUnit||p.unit||''),n=p.value===-32768||p.value===null||p.value===undefined?null:Number(p.value);
  const el=card(label,n,unit,p.timestamp?'Updated '+new Date(p.timestamp).toLocaleTimeString():'Current myUplink value',/BT1|outdoor|utomhus/i.test(label)?'battery':'load');
  el.classList.add('nibe-click-card');el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-label','Show history for '+label);
  const preview=document.createElement('div');preview.className='nibe-hover-preview';const rows=nibeRowsFor(id,label);preview.innerHTML=rows.length?nibeSparkline(rows):'<span>No local history yet</span>';
@@ -86,7 +88,7 @@ function renderNibeCards(){
  if(!nibePoints.length){host.replaceChildren(card('NIBE INPUTS',null,'','Waiting for myUplink readings.','load'));return;}
  const seen=new Set(),points=nibePoints.filter(p=>{
   const id=String(p.parameterId??p.id??p.parameterName??p.name??''),name=String(p.parameterName||p.name||'');
-  const wanted=!/\boffset\b/i.test(name)&&(/\bBT(?:1|2|3|6|7|10|11|12|50)\b/i.test(name)||/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|kompressor.*hastighet/i.test(name));
+  const wanted=!/\boffset\b/i.test(name)&&(/\bBT(?:1|2|3|6|7|10|11|12|50)\b/i.test(name)||isCompressorFrequencyPoint(p));
   if(!wanted||!id||seen.has(id))return false;seen.add(id);
   return p.value!==undefined&&p.value!==null&&Number.isFinite(Number(p.value))&&Number(p.value)!==-32768;
  });
@@ -97,8 +99,8 @@ function renderNibeCards(){
 }
 
 function wireNibeSpecialHistoryCards(){
- const specs=[{id:'thermal-chart',pattern:/\\(BT7\\)|varmvatten topp/i,label:'Hot-water temperature'},{id:'compressor-chart',pattern:/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,label:'Compressor activity'}];
- for(const spec of specs){const host=$(spec.id),panel=host?.closest('.chart-card');if(!panel)continue;const point=nibePoints.find(p=>spec.pattern.test(String(p.parameterName||p.name||'')));if(!point)continue;
+ const specs=[{id:'thermal-chart',pattern:/\\(BT7\\)|varmvatten topp/i,label:'Hot-water temperature'},{id:'compressor-chart',pattern:/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,label:'Compressor activity',match:isCompressorFrequencyPoint}];
+ for(const spec of specs){const host=$(spec.id),panel=host?.closest('.chart-card');if(!panel)continue;const point=nibePoints.find(p=>spec.match?spec.match(p):spec.pattern.test(String(p.parameterName||p.name||'')));if(!point)continue;
   const pid=String(point.parameterId??point.id??point.parameterName??point.name),unit=String(point.parameterUnit||point.unit||'');
   panel.classList.add('nibe-click-card','nibe-special-card');panel.tabIndex=0;panel.setAttribute('role','button');panel.setAttribute('aria-label','Show history for '+spec.label);
   if(!panel.querySelector('.nibe-hover-preview')){const preview=document.createElement('div');preview.className='nibe-hover-preview';const rows=nibeRowsFor(pid,spec.label);preview.innerHTML=rows.length?nibeSparkline(rows):'<span>No local history yet</span>';const caption=document.createElement('small');caption.textContent=rows.length?rows.length+' saved samples · click for details':'History starts collecting locally';preview.append(caption);panel.append(preview);}
@@ -316,7 +318,7 @@ function render(){
  }
  if(view==='thermal'){
   if(nibeHistoryRows.length){
-   renderNibeHistoryChart('compressor-chart',/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,'Compressor activity','Hz');
+   renderNibeHistoryChart('compressor-chart',/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,'Compressor activity','Hz',COMPRESSOR_FREQUENCY_PARAMETER_ID);
    wireNibeSpecialHistoryCards();
   }else if(live){
    for(const id of ['compressor-chart']){const el=$(id);el.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent='Waiting for locally stored NIBE readings.';el.append(empty);}
