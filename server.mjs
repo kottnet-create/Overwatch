@@ -7,6 +7,7 @@ import {createTibberMonitor} from './tibber.mjs';
 import {createNordPoolPrices} from './nordpool-prices.mjs';
 import {createMyUplink} from './myuplink.mjs';
 import {createNibeHistory} from './nibe-history.mjs';
+import {findNibePointCandidates} from './nibe-point-diagnostics.mjs';
 import {assessTibberSource} from './tibber-quality.mjs';
 import {assessNibeSource} from './nibe-quality.mjs';
 import {assessNordPoolSource} from './nordpool-quality.mjs';
@@ -54,6 +55,13 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   if(route==='/api/myuplink/status')return myUplink.status(send);
   if(route==='/api/myuplink/systems')return myUplink.systems(send);
   if(route==='/api/myuplink/points')return myUplink.points(send);
+  if(route==='/api/myuplink/points/diagnostics'&&req.method==='GET'){
+   try{
+    if(typeof myUplink.fetchPointData!=='function')return send(503,JSON.stringify({error:'myUplink point discovery is unavailable.'}),'application/json');
+    const payload=await myUplink.fetchPointData();
+    return send(200,JSON.stringify(findNibePointCandidates(payload)),'application/json');
+   }catch(error){return send(502,JSON.stringify({error:'Could not read myUplink point catalogue.',detail:String(error.message||'Unknown error')}),'application/json');}
+  }
   if(route==='/api/myuplink/history')return send(200,JSON.stringify(nibeHistory.getHistory(new URL(req.url,'http://localhost').searchParams.get('hours')||24)),'application/json');
   if(route==='/api/myuplink/history/quality'){const requestedHours=Number(new URL(req.url,'http://localhost').searchParams.get('hours')||720);return send(200,JSON.stringify(nibeHistory.getPointStats(Number.isFinite(requestedHours)?requestedHours:720)),'application/json');}
   if(route==='/api/myuplink/history/latest')return send(200,JSON.stringify({stats:nibeHistory.stats(),samples:nibeHistory.getLatest()}),'application/json');
