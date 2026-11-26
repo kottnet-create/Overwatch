@@ -15,21 +15,22 @@ test('stores and retrieves the verified NIBE compressor frequency point by param
       systemId:'system-1',
       deviceId:'device-1',
       points:[
-        {parameterId:'43122',parameterName:'Aktuell kompressorfrekvens',value:59,unit:'Hz',timestamp:'2026-11-26T12:04:00.000Z'},
+        {parameterId:'41778',parameterName:'Aktuell kompressor­frekvens',value:60,unit:'Hz',timestamp:'2026-11-26T12:04:00.000Z'},
+        {parameterId:'43122',parameterName:'Min kompressor­frekvens',value:20,unit:'Hz',timestamp:'2026-11-25T22:38:23.000Z'},
         {parameterId:'49999',parameterName:'Unrelated diagnostic value',value:7,unit:'%',timestamp:'2026-11-26T12:04:00.000Z'},
       ],
     }]});
     assert.equal(result.inserted,1);
     const latest=history.getLatest();
     assert.equal(latest.length,1);
-    assert.equal(latest[0].parameterId,'43122');
-    assert.equal(latest[0].parameterName,'Aktuell kompressorfrekvens');
-    assert.equal(latest[0].value,59);
+    assert.equal(latest[0].parameterId,'41778');
+    assert.equal(latest[0].parameterName,'Aktuell kompressor­frekvens');
+    assert.equal(latest[0].value,60);
     assert.equal(latest[0].unit,'Hz');
     const saved=history.getHistory(24).samples;
     assert.equal(saved.length,1);
-    assert.equal(saved[0].parameterId,'43122');
-    assert.equal(saved[0].value,59);
+    assert.equal(saved[0].parameterId,'41778');
+    assert.equal(saved[0].value,60);
   } finally {
     history.close();
     fs.rmSync(directory,{recursive:true,force:true});
