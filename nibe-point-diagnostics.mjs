@@ -38,7 +38,7 @@ export function findNibePointCandidates(payload) {
       });
     }
   }
-  candidates.sort((a, b) => Number(b.frequencyUnit) - Number(a.frequencyUnit) || a.parameterName.localeCompare(b.parameterName, 'sv'));
+  candidates.sort((a, b) => Number(b.frequencyUnit) - Number(a.frequencyUnit));
   return {
     readOnly: true,
     totalDevices: devices.length,
