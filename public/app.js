@@ -1,6 +1,6 @@
 'use strict';
 const M=ObservatoryModel,C=window.OBSERVATORY_CONFIG||{},$=id=>document.getElementById(id);
-let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[],tibberPrices=null,nibePoints=[],nibePointUpdated=null,nibeHistoryRows=[],nibeLoadState='loading',nibeLoadMessage='Starting myUplink check…',nibeRefreshPromise=null;
+let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[],tibberPrices=null,nibePoints=[],nibePointUpdated=null,nibeHistoryRows=[],nibeLoadState='loading',nibeLoadMessage='Starting myUplink check…',nibeRefreshPromise=null,sourceStatuses=[];
 const text=(id,value)=>$(id).textContent=value;
 const formatTime=at=>new Date(at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 const value=(n,unit='W')=>Number.isFinite(n)?(unit==='W'?(n/1000).toFixed(2):unit==='%'?Math.round(n):n.toFixed(1)):'—';
@@ -168,7 +168,7 @@ async function refreshTibber(){
   if(!response.ok)throw new Error('Tibber status endpoint returned HTTP '+response.status);
   const status=await response.json(),live=status.latest;tibberLive=(status.status==='connected'&&!status.stale&&live)?status:null;if(tibberLive)mode='live';
   if(status.historyCount!==tibberHistory.length){const historyResponse=await fetch('./api/tibber/history',{cache:'no-store'});if(historyResponse.ok){const saved=await historyResponse.json();tibberHistory=Array.isArray(saved.samples)?saved.samples:[];}}
-  const priceResponse=await fetch('./api/spot-prices',{cache:'no-store'});if(priceResponse.ok)tibberPrices=await priceResponse.json();
+  const [priceResponse,sourceResponse]=await Promise.all([fetch('./api/spot-prices',{cache:'no-store'}),fetch('./api/status',{cache:'no-store'})]);if(priceResponse.ok)tibberPrices=await priceResponse.json();if(sourceResponse.ok){const aggregate=await sourceResponse.json();sourceStatuses=Array.isArray(aggregate.sources)?aggregate.sources:[];}
   statusEl.className='tibber-state'+(status.status==='connected'&&!status.stale?' online':' offline');
   statusEl.textContent=status.status==='connected'&&!status.stale?'CONNECTED · LIVE':String(status.status||'UNKNOWN').toUpperCase().replaceAll('_',' ');
   const kw=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n))?powerDisplay(Number(n)):'—';
@@ -213,8 +213,8 @@ function renderPriceChart(){
  if(!p||!Array.isArray(p.prices)||!p.prices.length){
   status.className='tibber-state offline';status.textContent='NO PRICE DATA';
   $('price-current').textContent='—';$('price-low').textContent='—';$('price-high').textContent='—';
-  chartEl.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent=p?.error||'Waiting for Nord Pool SE3 prices.';chartEl.append(empty);
-  detail.textContent='Spot price data is independent of Tibber Pulse. The source may be temporarily unavailable.';
+  chartEl.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent=p?.error||'Väntar på Nord Pool-priser för SE3.';chartEl.append(empty);
+  detail.textContent='Spotpriser hämtas separat från Tibber Pulse. Priskällan kan vara tillfälligt otillgänglig.';
   return;
  }
  const rows=[...p.prices].sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt));
@@ -227,7 +227,7 @@ function renderPriceChart(){
  $('price-low').textContent=fmt(p.lowest?.priceSekPerKwh??Math.min(...vals));
  $('price-high').textContent=fmt(p.highest?.priceSekPerKwh??Math.max(...vals));
  status.className='tibber-state'+(p.stale?' offline':' online');
- status.textContent=p.stale?'CACHED · STALE':'NORD POOL · SE3';
+ status.textContent=p.stale?'SPARAT · GAMMALT':'NORD POOL · SE3';
  const first=Date.parse(rows[0].startsAt),last=Date.parse(rows.at(-1).startsAt)+15*60*1000;
  let min=Math.min(...vals),max=Math.max(...vals);const spread=max-min;const pad=spread>0?spread*.12:Math.max(Math.abs(max)*.12,0.02);min-=pad;max+=pad;
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 250');svg.setAttribute('role','img');svg.setAttribute('aria-label','Nord Pool SE3 quarter-hourly spot prices');
@@ -242,6 +242,23 @@ function renderPriceChart(){
  const ticks=[0,6,12,18,24,30,36,42];for(const h of ticks){const x=50+h/Math.max(1,(last-first)/3600000)*730;if(x<=780)add('text',{x,y:238,'text-anchor':'middle'},String((new Date(first+h*3600000)).getHours()).padStart(2,'0')+':00');}
  chartEl.replaceChildren(svg);
  detail.textContent='Elområde SE3 · Nord Pool spotpris · '+rows.length+' tillgängliga kvartsvärden · uppdaterad '+(p.fetchedAt?new Date(p.fetchedAt).toLocaleString():'okänt')+'. Priset visas i öre/kWh, exklusive moms, Bixias påslag, energiskatt och nätavgifter. Källa: Spotpris.nu.';
+}
+function renderOverviewSources(){
+ const host=$('overview-sources');if(!host)return;host.replaceChildren();
+ const labels={Tibber:'Tibber Pulse','myUplink / NIBE':'NIBE F1255','Nord Pool (Spotpris.nu)':'Nord Pool SE3'};
+ const states={fresh:['AKTUELL','online'],partial:['DELVIS','offline'],stale:['GAMMAL DATA','offline'],missing:['SAKNAS','offline'],invalid:['OGILTIG','offline']};
+ const map=new Map(sourceStatuses.map(s=>[s.provider,s]));
+ for(const key of ['Tibber','myUplink / NIBE','Nord Pool (Spotpris.nu)']){
+  const item=map.get(key),quality=item?.dataQuality||'missing',[label,cls]=states[quality]||['OKÄND','offline'];
+  const row=document.createElement('div');row.className='source-row';
+  const name=document.createElement('span');name.textContent=labels[key];
+  const badge=document.createElement('span');badge.className='tibber-state '+cls;badge.textContent=label;row.append(name,badge);host.append(row);
+ }
+ for(const label of ['Huawei','Emaldo','Zaptec']){
+  const row=document.createElement('div');row.className='source-row';
+  const name=document.createElement('span');name.textContent=label;
+  const badge=document.createElement('span');badge.className='tibber-state offline';badge.textContent='INVÄNTAR API';row.append(name,badge);host.append(row);
+ }
 }
 function renderConnectionStatus(){
  const target=$('connection-tibber-status'),detail=$('connection-tibber-detail');
@@ -284,40 +301,34 @@ function render(){
  const latest=M.latest(data),v=latest.values,stale=M.age(data)>90000;
  const live=Boolean(tibberLive&&tibberLive.latest);
  const t=live?tibberLive.latest:null;
- const badge=live?'TIBBER LIVE':mode==='demo'?'SYNTHETIC DEMO':mode==='recorder'?(data.source.toLowerCase().includes('synthetic')?'SYNTHETIC / RECORDER':stale?'RECORDER / STALE':'RECORDER / RECENT'):'IMPORTED / RECORDED';
+ const badge=live?'TIBBER LIVE':mode==='demo'?'DEMO · SYNTETISKT':mode==='recorder'?(data.source.toLowerCase().includes('synthetic')?'DEMO · INSPELAD':stale?'INSPELNING · GAMMAL':'INSPELNING · AKTUELL'):'IMPORTERADE VÄRDEN';
  text('mode-badge',badge);
- text('dataset-label',live?'Tibber Pulse · live measurements':'Synthetic demo · not a real home');
+ text('dataset-label',live?'Tibber Pulse · direkta livevärden':'Komplett energibalans ännu inte tillgänglig');
  text('clock',new Date().toLocaleString(undefined,{weekday:'short',hour:'2-digit',minute:'2-digit'}));
- text('data-time',live?'Latest Tibber measurement · '+formatTime(t.timestamp):(mode==='demo'?'Synthetic sample':'Latest recorded sample')+' · '+formatTime(latest.at));
+ text('data-time',live?'Senaste Tibber-mätning · '+formatTime(t.timestamp):(mode==='demo'?'Syntetiska exempeldata':'Senaste importerade mätning')+' · '+formatTime(latest.at));
  text('scene-source',live?'LIVE TIBBER DATA':mode==='demo'?'SAMPLE HOME':'YOUR IMPORTED READINGS');
- text('subtitle',C.subtitle||'One place to understand your home.');
+ text('subtitle',C.subtitle||'Husets energi. Samlad och begriplig.');
  renderPriceChart();
  renderConnectionStatus();
+ $('scene-source').textContent=live?'TIBBER · LIVE':mode==='demo'?'SYNTETISK DEMO':'INVÄNTAR DATA';
  if(live){
-  $('energy-cards').replaceChildren(
-   card('TIBBER POWER',t.power,'W','Live reading from the main meter.','grid'),
-   card('SOLAR PRODUCTION','Unavailable','W','Huawei SUN2000 · API access pending.','solar'),
-   card('AVERAGE POWER',t.averagePower,'W','Tibber live-measurement average.','load'),
-   card('PEAK POWER',t.maxPower,'W','Tibber live-measurement peak.','battery')
-  );
+  $('energy-cards').replaceChildren(card('NÄTEFFEKT · TIBBER',t.power,'W','Tibbers rapporterade momentana effektvärde.','grid'),card('MEDELEFFEKT',t.averagePower,'W','Tibbers medelvärde i aktuell mätperiod.','load'),card('TOPPEFFEKT',t.maxPower,'W','Tibbers högsta rapporterade effekt.','battery'),card('SOLPRODUKTION','Ej tillgänglig','W','Väntar på verifierad Huawei-data.','solar'));
  }else{
-  $('energy-cards').replaceChildren(
-   card('SOLAR GENERATION',v.solar,'W','Synthetic example only.','solar'),
-   card('SITE CONSUMPTION',v.siteLoad,'W','Synthetic example only.','load'),
-   card('GRID EXCHANGE',v.gridNet,'W','Synthetic example only.','grid'),
-   card('BATTERY CHARGE',v.batterySOC,'%','Synthetic example only.','battery')
-  );
+  $('energy-cards').replaceChildren(card('SOLPRODUKTION',null,'W','Ingen verifierad livekälla.','solar'),card('HUSFÖRBRUKNING',null,'W','Kräver verifierad energibalans.','load'),card('NÄTEFFEKT',null,'W','Väntar på aktuell Tibber-mätning.','grid'),card('BATTERI',null,'%','Väntar på verifierad Emaldo-data.','battery'));
  }
- $('split').replaceChildren();
- const rows=live
-  ?[['Battery charge','Not connected'],['Whole-home breakdown','Not available yet'],['Historical readings','Collection not enabled']]
-  :[['Total site',value(v.siteLoad)+' kW'],[C.garageLabel||'Garage',value(v.garage)+' kW'],[C.houseLabel||'House',value(M.houseLoad(v))+' kW']];
- for(const [label,n] of rows){
-  const row=document.createElement('div');row.className='split-row';
-  const name=document.createElement('span');name.textContent=label;
-  const val=document.createElement('b');val.textContent=n;
-  row.append(name,val);$('split').append(row);
+ const setValue=(id,n)=>{const el=$(id);if(el)el.textContent=Number.isFinite(n)?powerDisplay(n):'—';};
+ setValue('balance-grid',live?t.power:null);setValue('balance-solar',null);setValue('balance-battery',null);
+ $('balance-status').className='tibber-state offline';$('balance-status').textContent='UNDERLAG SAKNAS';
+ $('balance-placeholder').textContent='Total husförbrukning visas först när solproduktion, nätflöde och batteriets effekt finns som färska, tidsmässigt samordnade och verifierade mätvärden.';
+ $('balance-load').textContent='Ej tillgänglig';
+ const phases=[['l1','currentL1','voltagePhase1'],['l2','currentL2','voltagePhase2'],['l3','currentL3','voltagePhase3']];
+ for(const [suffix,currentKey,voltageKey] of phases){
+  const current=t&&Number.isFinite(t[currentKey])?t[currentKey]:null,voltage=t&&Number.isFinite(t[voltageKey])?t[voltageKey]:null;
+  $('phase-current-'+suffix).textContent=current===null?'—':current.toFixed(1)+' A';
+  $('phase-voltage-'+suffix).textContent='Spänning '+(voltage===null?'—':Math.round(voltage)+' V');
  }
+ $('phase-updated').textContent=live?'Senast '+formatTime(t.timestamp):'Väntar på mätvärden';
+ renderOverviewSources();
  if(mode==='demo'){
   $('thermal-cards').replaceChildren(
    card('HOT WATER',v.hotWater,'°C','Synthetic example only.','load'),
@@ -333,11 +344,8 @@ function render(){
   $('thermal-cards').replaceChildren(card(label,null,'',note,'load'));
  }
  if(view==='overview'){
-  if(live){
-   const el=$('energy-chart');el.replaceChildren();
-   const empty=document.createElement('div');empty.className='empty';
-   tibberChart('energy-chart',tibberHistory,Number($('overview-range').value));
-  }else chart('energy-chart',['solar','siteLoad'],subset(Number($('overview-range').value)));
+  if(live){tibberChart('energy-chart',tibberHistory,Number($('overview-range').value));}
+  else{$('energy-chart').replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent='Väntar på riktiga mätvärden från Tibber.';$('energy-chart').append(empty);}
  }
  if(view==='thermal'){
   // The current thermal page uses measurement cards and history dialogs.
