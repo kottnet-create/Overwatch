@@ -464,3 +464,14 @@ Inspection identified a frontend sequencing issue in `public/app.js`: after fetc
 Commit: `245a799492f9e4e612f9592512c7aac87c5dcdfc` on `overwatch-foundation`.
 
 Local browser verification and `npm.cmd test` are pending. Next: fetch/fast-forward the branch, run the test suite, then refresh the Heat pump page and confirm that the real NIBE cards appear without switching pages. No provider, database, credentials or server collection behavior was changed.
+
+
+## NIBE browser startup diagnostics — 2026-11-26
+
+The first attempt to decouple live NIBE card rendering from history loading did not resolve the user's full-page-refresh symptom. Direct local API checks had already shown myUplink connected, one system, 499 points and 948 saved history samples, while the browser still displayed only WAITING FOR NIBE.
+
+Updated `public/app.js` to expose the current NIBE startup stage directly on the Heat pump page (checking status, loading systems, loading measurement points), show the actual fetch/error message if initialization fails, and prevent overlapping myUplink refresh requests. This is diagnostic instrumentation to identify which browser request or stage is failing; it does not change collection, database contents, credentials or provider permissions.
+
+Commit: `da071614928fa0490c5f40b5fa221229511db114` on `overwatch-foundation`.
+
+Local browser verification and test-suite rerun are pending. Next: fast-forward the user's local branch, hard-refresh the Heat pump page, and report the exact status text displayed. Do not infer the cause until the browser shows which stage is reached.
