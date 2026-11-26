@@ -418,3 +418,10 @@ The user pulled the NIBE history coverage/retention changes and ran `npm.cmd tes
 Added `GET /api/myuplink/points/diagnostics`. It fetches the existing read-only myUplink point catalogue and returns only likely compressor/frequency candidates with parameter ID, name, numeric value (when available), unit and source timestamp, plus total catalogue size. This is diagnostic discovery only: candidates are not added to collection/history and no NIBE settings or device state are changed. Candidate matching is heuristic and the exact point meaning/unit must be verified before collection is enabled. Added unit and route tests. Local Windows test execution is pending.
 
 Next: pull `overwatch-foundation`, run `npm.cmd test`, then open `http://127.0.0.1:8780/api/myuplink/points/diagnostics` and share the result. Use the result to identify the correct compressor-frequency point without guessing its parameter ID.
+
+
+### Expanded NIBE point search — 2026-11-26
+
+The user inspected the first diagnostic response: 499 points, 28 name-based candidates, but no confirmed compressor-frequency point. Expanded the read-only diagnostics to scan the full catalogue for frequency-like units (Hz/kHz/MHz/rpm/r/min/1/min/min^-1/s^-1) as well as names containing compressor, frequency, speed, motor or pump clues. The endpoint also reports counts for every observed unit. It remains diagnostic only and does not enable collection for any candidate. Added tests for unit-based discovery. Local test execution is pending.
+
+Next: pull `overwatch-foundation`, run `npm.cmd test`, restart the local server, and reopen `http://127.0.0.1:8780/api/myuplink/points/diagnostics`. Review `frequencyUnitCount`, `unitCounts`, and the candidates. If no credible frequency point appears, do not invent one; mark the compressor frequency unavailable through this myUplink point catalogue and continue with other priorities.
