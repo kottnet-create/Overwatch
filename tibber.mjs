@@ -27,6 +27,33 @@ const LIVE_QUERY = `subscription OverwatchLiveMeasurement($homeId: ID!) {
 
 const sleepJitter = ms => Math.round(ms * (0.75 + Math.random() * 0.5));
 
+/** Normalize one Tibber live event without turning absent fields into zero. */
+export function normalizeTibberLiveMeasurement(live) {
+  if (!live || typeof live !== 'object' || Array.isArray(live) ||
+      typeof live.timestamp !== 'string' || !Number.isFinite(Date.parse(live.timestamp)) ||
+      live.power == null || live.power === '' || !Number.isFinite(Number(live.power))) {
+    return null;
+  }
+
+  const optionalNumber = value =>
+    value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
+
+  return {
+    timestamp: live.timestamp,
+    power: Number(live.power),
+    powerProduction: optionalNumber(live.powerProduction),
+    accumulatedConsumption: optionalNumber(live.accumulatedConsumption),
+    accumulatedCost: optionalNumber(live.accumulatedCost),
+    currency: typeof live.currency === 'string' && live.currency.trim() ? live.currency : null,
+    minPower: optionalNumber(live.minPower),
+    averagePower: optionalNumber(live.averagePower),
+    maxPower: optionalNumber(live.maxPower),
+    accumulatedProduction: optionalNumber(live.accumulatedProduction),
+    lastMeterProduction: optionalNumber(live.lastMeterProduction),
+    lastMeterConsumption: optionalNumber(live.lastMeterConsumption),
+  };
+}
+
 export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId = process.env.TIBBER_HOME_ID, historyFile = HISTORY_FILE, dbPath = process.env.OVERWATCH_DB_PATH ? path.resolve(ROOT, process.env.OVERWATCH_DB_PATH) : path.join(ROOT, 'data', 'overwatch.sqlite'), now = () => Date.now() } = {}) {
   let socket = null;
   let stopped = false;
@@ -212,21 +239,8 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
         }));
       } else if (message.type === 'next') {
         const live = message.payload?.data?.liveMeasurement;
-        if (live && Number.isFinite(Number(live.power)) && Number.isFinite(Date.parse(live.timestamp))) {
-          const normalized = {
-            timestamp: live.timestamp,
-            power: Number(live.power),
-            powerProduction: live.powerProduction == null ? null : Number(live.powerProduction),
-            accumulatedConsumption: live.accumulatedConsumption == null ? null : Number(live.accumulatedConsumption),
-            accumulatedCost: live.accumulatedCost == null ? null : Number(live.accumulatedCost),
-            currency: live.currency || null,
-            minPower: live.minPower == null ? null : Number(live.minPower),
-            averagePower: live.averagePower == null ? null : Number(live.averagePower),
-            maxPower: live.maxPower == null ? null : Number(live.maxPower),
-            accumulatedProduction: live.accumulatedProduction == null ? null : Number(live.accumulatedProduction),
-            lastMeterProduction: live.lastMeterProduction == null ? null : Number(live.lastMeterProduction),
-            lastMeterConsumption: live.lastMeterConsumption == null ? null : Number(live.lastMeterConsumption),
-          };
+        const normalized = normalizeTibberLiveMeasurement(live);
+        if (normalized) {
           storeSample(normalized);
           update({
             status: 'connected',
