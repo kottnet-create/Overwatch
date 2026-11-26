@@ -72,10 +72,13 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   const file=path.join(root,'public',name);
   try{const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink())return send(404,'Not found.');const types={'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp'};return send(200,fs.readFileSync(file),types[path.extname(file)]);}catch{return send(404,'Not found.');}
  });
- let collectTimer=null,collecting=false;
+ let collectTimer=null,retentionTimer=null,collecting=false;
  const collectNibe=async()=>{if(collecting)return;collecting=true;try{const payload=await myUplink.fetchPointData();nibeHistory.record(payload);}catch(error){console.error('NIBE history collection failed:',error.message);}finally{collecting=false;}};
+ // Retention cleanup runs independently of provider polling, including during outages.
+ retentionTimer=setInterval(()=>{try{nibeHistory.prune();}catch(error){console.error('NIBE history retention cleanup failed:',error.message);}},60*60*1000);
+ retentionTimer.unref?.();
  if(autoCollect){collectNibe();collectTimer=setInterval(collectNibe,5*60*1000);collectTimer.unref?.();}
- server.on('close',()=>{if(collectTimer)clearInterval(collectTimer);tibberMonitor.close();myUplink.close();nibeHistory.close();});
+ server.on('close',()=>{if(collectTimer)clearInterval(collectTimer);if(retentionTimer)clearInterval(retentionTimer);tibberMonitor.close();myUplink.close();nibeHistory.close();});
  return server;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
