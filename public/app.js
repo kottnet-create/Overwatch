@@ -131,12 +131,18 @@ async function refreshMyUplink(){
    if(!pr.ok){nibeLoadState='unavailable';systemsEl.textContent+=' Device points could not be loaded: '+(pointResult.error||'HTTP '+pr.status)+'.';render();return;}
    const devices=pointResult.devices||[],all=devices.flatMap(d=>(d.points||[]).map(p=>({...p,deviceName:d.deviceName||d.productName||'NIBE'})));
    nibePoints=all;nibePointUpdated=new Date().toISOString();
-   const hr=await fetch('./api/myuplink/history?hours=720',{cache:'no-store'});
-   if(hr.ok){const saved=await hr.json();nibeHistoryRows=Array.isArray(saved.samples)?saved.samples:[];}
    nibeLoadState=all.length?'ready':'empty';
    systemsEl.textContent+=' Found '+devices.length+' device(s) and '+all.length+' available data point(s).';
    if(pointResult.diagnostics?.length)systemsEl.textContent+=' Details: '+pointResult.diagnostics.map(d=>(d.deviceName||d.systemName||d.stage)+': '+d.error).join(' | ');
+   // Show live NIBE cards as soon as points arrive; local history must not block first render.
    render();
+   try{
+    const hr=await fetch('./api/myuplink/history?hours=720',{cache:'no-store'});
+    if(hr.ok){const saved=await hr.json();nibeHistoryRows=Array.isArray(saved.samples)?saved.samples:[];render();}
+    else systemsEl.textContent+=' Local NIBE history is temporarily unavailable.';
+   }catch(historyError){
+    systemsEl.textContent+=' Local NIBE history is temporarily unavailable.';
+   }
 
   }else{
    nibeLoadState='unavailable';render();
