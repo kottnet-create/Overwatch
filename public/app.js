@@ -1,6 +1,6 @@
 'use strict';
 const M=ObservatoryModel,C=window.OBSERVATORY_CONFIG||{},$=id=>document.getElementById(id);
-let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[],tibberPrices=null,nibePoints=[],nibePointUpdated=null,nibeHistoryRows=[],nibeLoadState='loading';
+let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[],tibberPrices=null,nibePoints=[],nibePointUpdated=null,nibeHistoryRows=[],nibeLoadState='loading',nibeLoadMessage='Starting myUplink check…',nibeRefreshPromise=null;
 const text=(id,value)=>$(id).textContent=value;
 const formatTime=at=>new Date(at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 const value=(n,unit='W')=>Number.isFinite(n)?(unit==='W'?(n/1000).toFixed(2):unit==='%'?Math.round(n):n.toFixed(1)):'—';
@@ -108,7 +108,9 @@ function wireNibeSpecialHistoryCards(){
  }
 }
 async function refreshMyUplink(){
- nibeLoadState='loading';
+ if(nibeRefreshPromise)return nibeRefreshPromise;
+ nibeRefreshPromise=(async()=>{
+ nibeLoadState='loading';nibeLoadMessage='Checking myUplink status…';if(view==='thermal')render();
  const statusEl=$('myuplink-status'),detail=$('myuplink-detail'),systemsEl=$('myuplink-systems'),connect=$('myuplink-connect');
  if(!statusEl||!detail||!systemsEl)return;
  try{
@@ -121,16 +123,18 @@ async function refreshMyUplink(){
   connect.hidden=Boolean(status.connected);
   systemsEl.textContent='';
   if(status.connected){
+   nibeLoadMessage='Connected. Loading NIBE systems…';if(view==='thermal')render();
    const r=await fetch('./api/myuplink/systems',{cache:'no-store'}),result=await r.json();
    if(!r.ok)throw new Error(result.error||'Could not read myUplink systems.');
    const payload=result.data||{},items=Array.isArray(payload)?payload:(payload.systems||payload.items||[]);
    const names=items.map(x=>x.name||x.systemName||x.title).filter(Boolean);
    systemsEl.textContent=items.length?'Found '+items.length+' system(s): '+(names.join(', ')||'myUplink system')+'. Reading device points…':'myUplink is connected, but no systems were returned.';
    statusEl.className='tibber-state online';statusEl.textContent='CONNECTED';
+   nibeLoadMessage='System found. Loading the 499 available measurement points…';if(view==='thermal')render();
    const pr=await fetch('./api/myuplink/points',{cache:'no-store'}),pointResult=await pr.json();
    if(!pr.ok){nibeLoadState='unavailable';systemsEl.textContent+=' Device points could not be loaded: '+(pointResult.error||'HTTP '+pr.status)+'.';render();return;}
    const devices=pointResult.devices||[],all=devices.flatMap(d=>(d.points||[]).map(p=>({...p,deviceName:d.deviceName||d.productName||'NIBE'})));
-   nibePoints=all;nibePointUpdated=new Date().toISOString();
+   nibePoints=all;nibePointUpdated=new Date().toISOString();nibeLoadMessage='Loaded '+all.length+' NIBE measurement points.';
    nibeLoadState=all.length?'ready':'empty';
    systemsEl.textContent+=' Found '+devices.length+' device(s) and '+all.length+' available data point(s).';
    if(pointResult.diagnostics?.length)systemsEl.textContent+=' Details: '+pointResult.diagnostics.map(d=>(d.deviceName||d.systemName||d.stage)+': '+d.error).join(' | ');
@@ -145,14 +149,16 @@ async function refreshMyUplink(){
    }
 
   }else{
-   nibeLoadState='unavailable';render();
+   nibeLoadState='unavailable';nibeLoadMessage=status.message||'myUplink is not connected.';render();
   }
  }catch(error){
-  nibeLoadState='unavailable';
+  nibeLoadState='unavailable';nibeLoadMessage='myUplink loading failed: '+error.message;
   statusEl.className='tibber-state offline';statusEl.textContent='UNAVAILABLE';
   detail.textContent='Could not check myUplink account: '+error.message;
   render();
  }
+ })();
+ try{return await nibeRefreshPromise;}finally{nibeRefreshPromise=null;}
 }
 async function refreshTibber(){
  const statusEl=$('tibber-status'), detail=$('tibber-detail');
@@ -323,7 +329,7 @@ function render(){
  }else{
   const waiting=nibeLoadState==='loading',empty=nibeLoadState==='empty';
   const label=waiting?'WAITING FOR NIBE':empty?'NO NIBE POINTS':'NIBE UNAVAILABLE';
-  const note=waiting?'Connecting to myUplink and loading real measurements.':empty?'myUplink is connected, but returned no measurement points.':'Check the myUplink connection on the Connections page.';
+  const note=waiting?nibeLoadMessage:empty?'myUplink is connected, but returned no measurement points.':(nibeLoadMessage||'Check the myUplink connection on the Connections page.');
   $('thermal-cards').replaceChildren(card(label,null,'',note,'load'));
  }
  if(view==='overview'){
