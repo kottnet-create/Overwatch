@@ -64,3 +64,15 @@
 .camera-ptz[open]>.ptz-pad,.camera-ptz[open]>.ptz-presets,.camera-ptz[open]>.note{margin-left:14px;margin-right:14px}
 .camera-ptz[open]>.note:last-child{margin-bottom:14px}
 @media(max-width:700px){.camera-tile:not(.camera-tile-large) .camera-preview,.camera-tile-large .camera-preview{height:260px}}
+
+/* Dashboard layout refresh – energy overview */
+.overview-heading{display:flex;justify-content:space-between;align-items:end;gap:24px;margin:8px 0 18px}
+.overview-heading h2{font-size:25px;margin:5px 0 0}.overview-heading p{font-size:12px;max-width:420px;margin:0}
+.dashboard-grid{grid-template-columns:minmax(0,1.25fr) minmax(360px,1fr);align-items:stretch}
+.energy-overview{display:grid;gap:14px;min-width:0}.energy-cards{grid-template-columns:1fr 1fr;gap:10px}.energy-card{padding:15px 14px}.energy-card .reading{font-size:clamp(25px,2.1vw,34px);margin:10px 0 6px}
+.balance-card{padding:18px;border-color:#4f3828}.balance-card h2{font-size:17px}.balance-placeholder{font-size:11px;line-height:1.55;color:var(--muted);padding:12px;background:#101316;border:1px dashed #4a4f55;border-radius:4px}
+.balance-rows{display:grid;gap:0;margin-top:8px}.balance-rows>div{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:11px}.balance-rows strong{font-weight:550;color:var(--text);text-align:right}.balance-rows>div:last-child strong{color:var(--orange)}
+.phase-card{margin-top:18px;padding:18px 22px}.phase-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.phase-item{border-left:2px solid var(--orange);padding:8px 14px;background:#101316;border-radius:3px}.phase-item>span,.phase-item small{display:block;color:var(--muted);font:10px ui-monospace,monospace;letter-spacing:.6px}.phase-item strong{display:block;font-size:clamp(22px,2vw,31px);font-weight:450;margin:4px 0}
+.overview-lower{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,.85fr);gap:18px;margin-top:18px}.source-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}.source-row:last-child{border-bottom:0}.source-row .tibber-state{font-size:9px;padding:4px 7px}.system-summary{padding:18px}.system-summary .heading h2{font-size:17px}.system-summary .heading button{font-size:10px;padding:6px 9px}.price-card{margin-top:18px}.camera-home{margin-top:18px}
+@media(max-width:1150px){.dashboard-grid{grid-template-columns:1fr}.overview-lower{grid-template-columns:1fr}.overview-heading{display:block}.overview-heading p{margin-top:8px}}
+@media(max-width:700px){.phase-grid{gap:7px}.phase-item{padding:8px}.phase-item strong{font-size:20px}.phase-card{padding:15px}.overview-heading h2{font-size:21px}.energy-card{padding:12px}.energy-card .reading{font-size:24px}.balance-rows>div{font-size:10px}}
