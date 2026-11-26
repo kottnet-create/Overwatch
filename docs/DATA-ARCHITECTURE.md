@@ -292,3 +292,8 @@ The per-point history quality query now also reports `gapsOver10Minutes` and `ma
 The per-point quality endpoint now includes `expectedSamples`, `coveragePercent`, and `coveredHours`. Coverage is measured against the configured five-minute collection cadence: `expectedSamples = ceil(hours * 12)` and `coveragePercent = min(100, sampleCount / expectedSamples * 100)`. `coveredHours` reports the elapsed span between the first and latest received samples. This makes the short initial history window explicit and keeps coverage separate from freshness and gap counts.
 
 Retention remains 30 days for NIBE. The shared measurement store prunes expired rows when the database is opened and after each batch write. The server also runs a lightweight hourly cleanup timer independent of provider polling, so an extended provider outage does not prevent retention enforcement. The timer is unref'd and cleared when the server closes. Cleanup uses `received_at`; source timestamps are preserved as provider metadata. No schema migration or API history-shape change is required.
+
+
+### Read-only NIBE point discovery
+
+`GET /api/myuplink/points/diagnostics` fetches the existing read-only myUplink point catalogue and returns a compact list of likely compressor/frequency-related candidates (parameter ID, name, current numeric value, unit and source timestamp). It reports the catalogue size and does not add candidates to history or alter the selected NIBE collection points. Candidate names are heuristic only; verify the exact meaning and unit against the myUplink point metadata before enabling any point. The endpoint requires a configured myUplink connection and does not expose OAuth credentials.
