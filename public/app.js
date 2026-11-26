@@ -340,16 +340,21 @@ function render(){
   }else chart('energy-chart',['solar','siteLoad'],subset(Number($('overview-range').value)));
  }
  if(view==='thermal'){
-  if(nibeHistoryRows.length){
-   renderNibeHistoryChart('compressor-chart',/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,'Compressor activity','Hz',COMPRESSOR_FREQUENCY_PARAMETER_ID);
-   wireNibeSpecialHistoryCards();
-  }else if(live){
-   for(const id of ['compressor-chart']){const el=$(id);el.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent='Waiting for locally stored NIBE readings.';el.append(empty);}
-  }else if(mode==='demo'){
-   chart('compressor-chart',['compressor'],subset());
-  }else{
-   const el=$('compressor-chart');el.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent=nibeLoadState==='loading'?'Waiting for real NIBE history…':'No NIBE compressor history is available yet.';el.append(empty);
+  // The current thermal page uses measurement cards and history dialogs.
+  // Legacy chart containers are not present in index.html, so guard this path.
+  const compressorChart=$('compressor-chart');
+  if(compressorChart){
+   if(nibeHistoryRows.length){
+    renderNibeHistoryChart('compressor-chart',/compressor.*frequency|kompressor.*frekvens|compressor.*speed|kompressor.*hastighet/i,'Compressor activity','Hz',COMPRESSOR_FREQUENCY_PARAMETER_ID);
+   }else if(live){
+    compressorChart.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent='Waiting for locally stored NIBE readings.';compressorChart.append(empty);
+   }else if(mode==='demo'){
+    chart('compressor-chart',['compressor'],subset());
+   }else{
+    compressorChart.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent=nibeLoadState==='loading'?'Waiting for real NIBE history…':'No NIBE compressor history is available yet.';compressorChart.append(empty);
+   }
   }
+  wireNibeSpecialHistoryCards();
  }
  if(view==='history'){
   const key=$('metric').value;
