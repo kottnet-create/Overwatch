@@ -453,3 +453,14 @@ Changed on `overwatch-foundation`:
 Commit(s): `51ce183f28e3345f7e55b08c405b64d93be34a78`, `606b4c9a884175a45bdc04a86c6355fe7b405f38`.
 
 Verification: code reviewed after the GitHub updates. Browser runtime verification and the local `npm.cmd test` run are still pending. No server integration, SQLite data or provider credentials were changed.
+
+
+## NIBE cards render independently of history loading — 2026-11-26
+
+The user reported that after browser refresh the Heat pump page sometimes remained on a single “WAITING FOR NIBE” card, while switching to another page and back made the real measurement cards appear. The Connections page and direct API checks showed myUplink connected, 499 points available, and 948 saved history samples.
+
+Inspection identified a frontend sequencing issue in `public/app.js`: after fetching live points, the code awaited the local 720-hour history request before calling `render()`. This unnecessarily made the live cards depend on the history request completing. Updated the flow to render the live NIBE points immediately, then load history separately and rerender when history arrives. A history request failure no longer prevents the live cards from appearing.
+
+Commit: `245a799492f9e4e612f9592512c7aac87c5dcdfc` on `overwatch-foundation`.
+
+Local browser verification and `npm.cmd test` are pending. Next: fetch/fast-forward the branch, run the test suite, then refresh the Heat pump page and confirm that the real NIBE cards appear without switching pages. No provider, database, credentials or server collection behavior was changed.
