@@ -3,7 +3,8 @@ import {createMeasurementStore} from './measurement-store.mjs';
 
 const RETENTION_DAYS=30;
 const MAX_HOURS=24*30;
-const isWantedPoint=name=>!/\boffset\b/i.test(String(name||''))&&( /\bBT(?:1|2|3|6|7|10|11|12|50)\b/i.test(String(name||''))||/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|kompressor.*hastighet/i.test(String(name||'')));
+const COMPRESSOR_FREQUENCY_PARAMETER_ID='43122';
+const isWantedPoint=(name,parameterId)=>!/\boffset\b/i.test(String(name||''))&&(String(parameterId||'')===COMPRESSOR_FREQUENCY_PARAMETER_ID||/\bBT(?:1|2|3|6|7|10|11|12|50)\b/i.test(String(name||''))||/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|kompressor.*hastighet/i.test(String(name||'')));
 
 function asIso(value,fallback){
  if(value===undefined||value===null||value==='')return fallback;
@@ -25,7 +26,7 @@ export function createNibeHistory({dbPath=path.join(process.cwd(),'data','overwa
     if(raw===null||raw===undefined||raw===''||!Number.isFinite(n)||n===-32768)continue;
     const parameterId=String(p.parameterId??p.id??p.parameterName??p.name??'');
     const parameterName=String(p.parameterName??p.name??parameterId);
-    if(!parameterId||!isWantedPoint(parameterName))continue;
+    if(!parameterId||!isWantedPoint(parameterName,parameterId))continue;
     measurements.push({
      parameterId,
      parameterName,
