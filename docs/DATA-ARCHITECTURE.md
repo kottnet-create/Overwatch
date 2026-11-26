@@ -285,3 +285,10 @@ This is a history coverage/recency diagnostic, not proof that the underlying sen
 ### Collection-gap diagnostics — 2026-11-26
 
 The per-point history quality query now also reports `gapsOver10Minutes` and `maxGapMinutes`, calculated from consecutive Overwatch receipt timestamps in the requested window. A gap is counted when two successive stored samples for the same source/system/device/parameter are more than ten minutes apart. This helps distinguish a continuously polled point from a point with collection interruptions. It does not classify a gap as a provider outage or infer why a poll was missed. The calculation is read-only and uses SQLite window functions; existing history rows and API history payloads are unchanged.
+
+
+### NIBE history coverage and automatic retention — 2026-11-26
+
+The per-point quality endpoint now includes `expectedSamples`, `coveragePercent`, and `coveredHours`. Coverage is measured against the configured five-minute collection cadence: `expectedSamples = ceil(hours * 12)` and `coveragePercent = min(100, sampleCount / expectedSamples * 100)`. `coveredHours` reports the elapsed span between the first and latest received samples. This makes the short initial history window explicit and keeps coverage separate from freshness and gap counts.
+
+Retention remains 30 days for NIBE. The shared measurement store prunes expired rows when the database is opened and after each batch write. The server also runs a lightweight hourly cleanup timer independent of provider polling, so an extended provider outage does not prevent retention enforcement. The timer is unref'd and cleared when the server closes. Cleanup uses `received_at`; source timestamps are preserved as provider metadata. No schema migration or API history-shape change is required.
