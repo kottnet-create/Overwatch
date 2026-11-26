@@ -135,3 +135,26 @@ test('GET /api/myuplink/history/quality returns per-point diagnostics', async ()
     await new Promise(resolve => server.close(resolve));
   }
 });
+
+
+test('GET /api/myuplink/points/diagnostics lists compressor candidates without enabling collection', async () => {
+  const server = makeServer({myUplink: {
+    fetchPointData: async () => ({devices:[{deviceName:'NIBE F1255',points:[
+      {parameterId:'BT50',parameterName:'BT50 Room temperature',value:21,unit:'°C'},
+      {parameterId:'40099',parameterName:'Kompressor frekvens',value:42,unit:'Hz'},
+    ]}] }),
+  }});
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const response = await fetch('http://127.0.0.1:'+server.address().port+'/api/myuplink/points/diagnostics');
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.readOnly, true);
+    assert.equal(body.totalPoints, 2);
+    assert.equal(body.candidateCount, 1);
+    assert.equal(body.candidates[0].parameterId, '40099');
+    assert.equal(body.candidates[0].unit, 'Hz');
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
