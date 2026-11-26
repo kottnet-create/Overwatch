@@ -189,3 +189,51 @@ test('per-point statistics detect collection gaps over ten minutes', () => {
     fs.rmSync(temp.directory, {recursive: true, force: true});
   }
 });
+
+test('per-point statistics report coverage against the five-minute polling window', () => {
+  const temp = temporaryDatabase();
+  let now = Date.parse('2026-11-25T12:00:00.000Z');
+  const store = createMeasurementStore({dbPath: temp.dbPath, now: () => now});
+  try {
+    const batch = {source: 'myUplink', systemId: 'system-1', deviceId: 'device-1', measurements: [measurement()]};
+    store.recordBatch(batch);
+    now += 5 * 60 * 1000;
+    store.recordBatch(batch);
+    const point = store.getPointStats({source: 'myUplink', hours: 24}).points[0];
+    assert.equal(point.expectedSamples, 288);
+    assert.equal(point.sampleCount, 2);
+    assert.equal(point.coveragePercent, 0.69);
+    assert.equal(point.coveredHours, 0.08);
+  } finally {
+    store.close();
+    fs.rmSync(temp.directory, {recursive: true, force: true});
+  }
+});
+
+test('retention is enforced when the database opens, even before a new provider poll', () => {
+  const temp = temporaryDatabase();
+  const oldTime = Date.parse('2026-11-20T12:00:00.000Z');
+  const seed = new DatabaseSync(temp.dbPath);
+  seed.exec([
+    'CREATE TABLE measurements (',
+    ' id INTEGER PRIMARY KEY, source TEXT NOT NULL, system_id TEXT NOT NULL,',
+    ' device_id TEXT NOT NULL, parameter_id TEXT NOT NULL, parameter_name TEXT NOT NULL,',
+    ' value REAL NOT NULL, unit TEXT NOT NULL DEFAULT \'\', source_at TEXT NOT NULL,',
+    ' received_at TEXT NOT NULL, UNIQUE(source, device_id, parameter_id, received_at));',
+    'INSERT INTO measurements (source, system_id, device_id, parameter_id, parameter_name, value, unit, source_at, received_at)',
+    "VALUES ('myUplink', 'system-1', 'device-1', 'BT7', 'BT7 Hot water top', 48.5, '°C',",
+    "'2026-11-20T11:59:00.000Z', '2026-11-20T12:00:00.000Z');"
+  ].join('\n'));
+  seed.close();
+  const store = createMeasurementStore({
+    dbPath: temp.dbPath,
+    now: () => oldTime + 3 * 86400000,
+    retentionDays: 2,
+  });
+  try {
+    assert.equal(store.stats({source: 'myUplink'}).count, 0);
+  } finally {
+    store.close();
+    fs.rmSync(temp.directory, {recursive: true, force: true});
+  }
+});
