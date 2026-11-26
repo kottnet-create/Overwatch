@@ -29,9 +29,15 @@ test('Tibber history stores numeric fields in shared SQLite and keeps legacy JSO
       accumulatedProduction: null,
       lastMeterProduction: null,
       lastMeterConsumption: 1234.5,
+      currentL1: 1.7,
+      currentL2: 1.9,
+      currentL3: 1.2,
+      voltagePhase1: 233.8,
+      voltagePhase2: 235.2,
+      voltagePhase3: 236.2,
     }, {systemId: 'test-home'});
 
-    assert.equal(result.inserted, 8);
+    assert.equal(result.inserted, 14);
     const samples = history.getHistory();
     assert.equal(samples.length, 2);
     assert.equal(samples[1].power, 850);
@@ -40,6 +46,12 @@ test('Tibber history stores numeric fields in shared SQLite and keeps legacy JSO
     assert.equal(samples[1].accumulatedCost, 14.5);
     assert.equal(samples[1].currency, 'SEK');
     assert.equal(samples[1].lastMeterConsumption, 1234.5);
+    assert.equal(samples[1].currentL1, 1.7);
+    assert.equal(samples[1].currentL2, 1.9);
+    assert.equal(samples[1].currentL3, 1.2);
+    assert.equal(samples[1].voltagePhase1, 233.8);
+    assert.equal(samples[1].voltagePhase2, 235.2);
+    assert.equal(samples[1].voltagePhase3, 236.2);
     assert.equal(samples[1].receivedAt, '2026-11-25T12:00:05.000Z');
     assert.equal(fs.readFileSync(legacyHistoryFile, 'utf8'), originalLegacy);
     history.close();
@@ -47,6 +59,8 @@ test('Tibber history stores numeric fields in shared SQLite and keeps legacy JSO
     const reopened = createTibberHistory({dbPath, legacyHistoryFile, now});
     assert.equal(reopened.getHistory().length, 2);
     assert.equal(reopened.getHistory()[1].power, 850);
+    assert.equal(reopened.getHistory()[1].currentL1, 1.7);
+    assert.equal(reopened.getHistory()[1].voltagePhase3, 236.2);
     reopened.close();
   } finally {
     fs.rmSync(dir, {recursive: true, force: true});
