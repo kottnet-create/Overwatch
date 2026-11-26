@@ -87,5 +87,5 @@ export function createNibeHistory({dbPath=path.join(process.cwd(),'data','overwa
   const counts=points.reduce((acc,point)=>{acc[point.quality]++;return acc;},{fresh:0,stale:0});
   return {...result,points,counts,generatedAt:new Date(currentTime).toISOString()};
  }
- return {record,getHistory,getLatest,getPointStats,stats,close:store.close};
+ return {record,getHistory,getLatest,getPointStats,stats,prune:store.prune,close:store.close};
 }
