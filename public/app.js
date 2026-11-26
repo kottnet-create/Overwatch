@@ -20,7 +20,7 @@ function chart(id,keys,samples){const el=$(id);el.replaceChildren();const ns='ht
  element('text',{x:48,y:220},new Date(first).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));element('text',{x:780,y:220,'text-anchor':'end'},new Date(end).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}));el.append(svg);
 }
 
-const COMPRESSOR_FREQUENCY_PARAMETER_ID='43122';
+const COMPRESSOR_FREQUENCY_PARAMETER_ID='41778';
 const isCompressorFrequencyPoint=p=>String(p?.parameterId??p?.id??'')===COMPRESSOR_FREQUENCY_PARAMETER_ID||/compressor.*frequency|frequency.*compressor|kompressor.*frekvens|frekvens.*kompressor|compressor.*speed|kompressor.*hastighet/i.test(String(p?.parameterName||p?.name||''));
 function renderNibeHistoryChart(id,pattern,label,unit,parameterId=null){
  const host=$(id);if(!host)return;host.replaceChildren();
