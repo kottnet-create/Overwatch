@@ -168,8 +168,18 @@ export function createMeasurementStore({
       ' AND m.parameter_id = g.parameter_id AND m.received_at = g.last_received_at' +
       ' ORDER BY g.source, g.device_id, g.parameter_id'
     ).all(...params);
-    return {hours: boundedHours, retentionDays, count: rows.length, points: rows};
+    const expectedSamples = Math.ceil(boundedHours * 12);
+    const points = rows.map(row => ({
+      ...row,
+      expectedSamples,
+      coveragePercent: Math.min(100, Number((row.sampleCount / expectedSamples * 100).toFixed(2))),
+      coveredHours: Number(((Date.parse(row.lastReceivedAt) - Date.parse(row.firstReceivedAt)) / 3600000).toFixed(2)),
+    }));
+    return {hours: boundedHours, retentionDays, expectedSamples, count: points.length, points};
   }
+
+  // Enforce retention when the database is opened, even if the provider is offline.
+  prune();
 
   return {
     recordBatch, getHistory, getLatest, getPointStats, stats, prune,
