@@ -33,7 +33,7 @@ test('Tibber events endpoint streams the current status and subsequent live upda
     request.on('error', reject);
   });
   assert.equal(response.statusCode, 200);
-  assert.match(response.headers['content-type'], /text\\/event-stream/);
+  assert.match(response.headers['content-type'], /text\/event-stream/);
 
   const firstEvent = await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Timed out waiting for initial SSE status.')), 1000);
