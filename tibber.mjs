@@ -65,6 +65,7 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
   let prices = loadPrices();
   let priceFetchedAt = prices.fetchedAt ? Date.parse(prices.fetchedAt) : 0;
   let priceTimer = null;
+  const listeners = new Set();
   let state = {
     configured: Boolean(token),
     status: token ? 'starting' : 'not_configured',
@@ -242,13 +243,18 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
         const normalized = normalizeTibberLiveMeasurement(live);
         if (normalized) {
           storeSample(normalized);
+          const receivedAt = new Date().toISOString();
           update({
             status: 'connected',
             message: 'Receiving live measurements from Tibber.',
             homeName: home.appNickname || 'Home',
             latest: normalized,
-            receivedAt: new Date().toISOString(),
+            receivedAt,
           });
+          const snapshot = getStatus();
+          for (const listener of listeners) {
+            try { listener(snapshot); } catch { /* A disconnected client must not affect Tibber ingestion. */ }
+          }
         }
       } else if (message.type === 'ping') {
         socket.send(JSON.stringify({ type: 'pong', ...(message.payload ? { payload: message.payload } : {}) }));
@@ -299,6 +305,11 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
   if (token) connect();
 
   return {
+    subscribe(listener) {
+      if (typeof listener !== 'function') throw new TypeError('Tibber listener must be a function.');
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     getStatus() {
       const stale = state.receivedAt ? Date.now() - Date.parse(state.receivedAt) > 180000 : true;
       return {
