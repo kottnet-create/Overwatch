@@ -77,6 +77,18 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
 
   const update = patch => { state = { ...state, ...patch }; };
 
+  function getStatus() {
+    const stale = state.receivedAt ? Date.now() - Date.parse(state.receivedAt) > 180000 : true;
+    return {
+      ...state,
+      latest: state.latest,
+      historyCount: history.length,
+      historyError: state.historyError || null,
+      stale,
+    };
+  }
+
+
   function loadPrices() {
     try {
       const file = path.join(ROOT, 'data', 'tibber-prices.json');
@@ -310,16 +322,7 @@ export function createTibberMonitor({ token = process.env.TIBBER_TOKEN, homeId =
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    getStatus() {
-      const stale = state.receivedAt ? Date.now() - Date.parse(state.receivedAt) > 180000 : true;
-      return {
-        ...state,
-        latest: state.latest,
-        historyCount: history.length,
-        historyError: state.historyError || null,
-        stale,
-      };
-    },
+    getStatus,
     getHistory() {
       return { source: 'Tibber Pulse', intervalMinutes: 5, samples: history };
     },
