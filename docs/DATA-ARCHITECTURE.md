@@ -47,14 +47,16 @@ Keep both timestamps. They answer different questions: when the equipment says t
 
 ### Tibber mapping
 
-Tibber's live WebSocket message is one source event containing several fields. Store each available numeric field as a measurement row with the same source timestamp and receipt timestamp. Use explicit units, for example:
+Tibber's live WebSocket message is one source event containing several fields. Store each available numeric field as a measurement row with the same source timestamp and receipt timestamp. The current official GraphQL schema describes the fields as follows:
 
-- power, powerProduction, minPower, averagePower, maxPower: W
-- accumulatedConsumption, accumulatedProduction: use the unit documented by Tibber for the returned field; verify before persisting or displaying as kWh
-- accumulatedCost: store the returned currency alongside the numeric value; do not assume SEK if the API says otherwise
-- lastMeterProduction, lastMeterConsumption: verify the provider's semantics and unit before exposing them as energy totals
+- `power`: instantaneous consumption in W.
+- `powerProduction`: net power production (A-) at the moment in W.
+- `minPower`, `averagePower`, `maxPower`: consumption statistics in W.
+- `accumulatedConsumption`, `accumulatedProduction`: energy since midnight in kWh.
+- `lastMeterConsumption`, `lastMeterProduction`: active import/export register values in kWh.
+- `accumulatedCost`: accumulated cost since midnight; retain the returned `currency` and do not assume SEK.
 
-Do not infer a missing unit or reinterpret a cumulative counter as instantaneous power. Preserve Tibber's provider timestamp; record a separate local receipt timestamp.
+Tibber notes that meter hardware/firmware affects which fields are present and that the data is not guaranteed to be complete or fully correct. Therefore, do not treat `power` alone as a signed grid-net reading, do not infer a signed net value by combining fields until the specific meter's semantics have been verified, and do not treat `powerProduction` as PV inverter generation. Preserve the provider timestamp and record a separate local receipt timestamp. See the [official LiveMeasurement schema](https://developer.tibber.com/api/reference.md#livemeasurement).
 
 Tibber spot-price forecasts are not ordinary live measurements. They can remain a separately cached dataset initially, or move to a dedicated SQLite price table later. Price rows must retain interval start, resolution, currency, energy/tax/total components, provider and fetched-at time. Do not mix forecast prices with measured consumption history.
 
