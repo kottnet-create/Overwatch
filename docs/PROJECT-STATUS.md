@@ -475,3 +475,8 @@ Updated `public/app.js` to expose the current NIBE startup stage directly on the
 Commit: `da071614928fa0490c5f40b5fa221229511db114` on `overwatch-foundation`.
 
 Local browser verification and test-suite rerun are pending. Next: fast-forward the user's local branch, hard-refresh the Heat pump page, and report the exact status text displayed. Do not infer the cause until the browser shows which stage is reached.
+
+
+## Correct NIBE compressor-frequency parameter — 2026-11-26
+
+A fresh read-only myUplink point catalogue confirmed parameter ID `41778` (`Aktuell kompressor­frekvens`) as the current compressor frequency in Hz. Parameter `43122` is `Min kompressor­frekvens` and is a minimum-frequency setting/reading with an older timestamp, not the live compressor frequency. Updated both the browser mapping and NIBE history collector to use `41778`. Existing SQLite history is preserved; historical `43122` rows are not deleted and will no longer be selected as compressor activity. Updated the persistence test to include both points and verify that only `41778` is stored. Local test execution and live verification remain pending.
