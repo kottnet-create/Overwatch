@@ -297,3 +297,8 @@ Retention remains 30 days for NIBE. The shared measurement store prunes expired 
 ### Read-only NIBE point discovery
 
 `GET /api/myuplink/points/diagnostics` fetches the existing read-only myUplink point catalogue and returns a compact list of likely compressor/frequency-related candidates (parameter ID, name, current numeric value, unit and source timestamp). It reports the catalogue size and does not add candidates to history or alter the selected NIBE collection points. Candidate names are heuristic only; verify the exact meaning and unit against the myUplink point metadata before enabling any point. The endpoint requires a configured myUplink connection and does not expose OAuth credentials.
+
+
+### Expanded NIBE frequency-point discovery
+
+The read-only `GET /api/myuplink/points/diagnostics` search now scans the complete returned point catalogue and includes a point if its name contains compressor/frequency/speed/motor/pump clues or if its unit looks like a frequency/speed unit (`Hz`, `kHz`, `MHz`, `rpm`, `r/min`, `1/min`, `min^-1`, `s^-1`). The response also reports all observed unit counts and which candidates matched by unit. This is a discovery heuristic only: it does not prove that a point is compressor frequency and does not change the collection list.
