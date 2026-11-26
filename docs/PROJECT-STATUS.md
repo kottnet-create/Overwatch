@@ -55,7 +55,7 @@ The development branch README documents:
 - Database path configurable using `OVERWATCH_DB_PATH`.
 - Local history endpoints: `/api/myuplink/history?hours=24` (up to 720 hours) and `/api/myuplink/history/latest`.
 - BT7 history chart uses stored data.
-- Compressor history chart remains empty until the matching compressor-frequency point is identified.
+- Compressor activity is now verified against the NIBE app using myUplink parameter ID `41778` (`Aktuell kompressor­frek­vens`, Hz). The card and local history chart are working; the user confirmed the displayed 40.0 Hz matched the NIBE app on 2026-11-26.
 - Alarm and firmware information are future GET-only tasks.
 
 Verify these claims against the current code before relying on them.
@@ -429,15 +429,15 @@ Next: pull `overwatch-foundation`, run `npm.cmd test`, restart the local server,
 
 ## Verified NIBE compressor-frequency point — 2026-11-26
 
-The user confirmed that the myUplink point matches the value shown in the official NIBE app. The verified point is parameter ID `43122`, name `Aktuell kompressorfrekvens`, value observed `59`, unit `Hz`.
+Correction (2026-11-26): the live compressor-frequency point is parameter ID `41778`, `Aktuell kompressor­frek­vens`, unit `Hz`. Parameter `43122` is the minimum compressor frequency, not the live frequency.
 
 Implementation on `overwatch-foundation`:
-- NIBE history collection explicitly recognizes parameter ID `43122` as well as the existing localized/English name patterns.
+- NIBE history collection explicitly recognizes parameter ID `41778` as well as the existing localized/English name patterns.
 - The Heat pump view recognizes this parameter ID for the compressor activity card and its history chart, so the mapping does not depend solely on the provider's display name.
 - The point remains read-only. Frequency is activity data in Hz, not electrical power.
 - Added a temporary-SQLite test to verify that the point is recorded and returned by the history API wrapper without recording unrelated catalogue points.
 
-The user has restarted the local server and confirmed the current value matches the NIBE app. The new persistence test still needs to be run locally as part of `npm.cmd test`. After updating the checkout, allow one or more five-minute collection cycles and verify that the compressor chart/history grows. Existing live database files are not edited by the code change.
+The user restarted the local server and confirmed the current compressor card shows 40.0 Hz, matching the official NIBE app. The card displays a current update time and its history chart has begun collecting samples (4 saved samples observed). The full local test suite subsequently passed: 58 tests, 0 failures. Existing SQLite history was preserved; old rows for parameter 43122 were not deleted.
 
 ## Thermal page startup fallback — 2026-11-26
 
@@ -480,3 +480,14 @@ Local browser verification and test-suite rerun are pending. Next: fast-forward 
 ## Correct NIBE compressor-frequency parameter — 2026-11-26
 
 A fresh read-only myUplink point catalogue confirmed parameter ID `41778` (`Aktuell kompressor­frekvens`) as the current compressor frequency in Hz. Parameter `43122` is `Min kompressor­frekvens` and is a minimum-frequency setting/reading with an older timestamp, not the live compressor frequency. Updated both the browser mapping and NIBE history collector to use `41778`. Existing SQLite history is preserved; historical `43122` rows are not deleted and will no longer be selected as compressor activity. Updated the persistence test to include both points and verify that only `41778` is stored. Local test execution and live verification remain pending.
+
+
+## Energy-flow and data-quality continuation — 2026-11-26
+
+- The shared `data-quality.mjs` contract and provider adapters for Tibber, myUplink/NIBE and Nord Pool are already present; `GET /api/status` aggregates them without exposing credentials or triggering provider refreshes.
+- `energy-flow.mjs` is a pure, tested calculation using normalized W readings and explicit sign conventions. It refuses missing, stale, invalid or misaligned inputs and does not infer provider semantics.
+- Local Windows test run reported by the user: 58 tests passed, 0 failed.
+- Live site-load calculation remains intentionally unavailable until Huawei PV and Emaldo battery power are accessible and their units/signs are verified. Tibber Pulse alone is not enough to separate PV and battery contribution.
+- NIBE compressor frequency is verified on parameter 41778 and should not be changed while developing energy-flow functionality.
+
+Next: continue with provider-neutral energy-flow readiness and data-quality diagnostics, without wiring unverified Huawei/Emaldo data into calculations or changing working NIBE/Tibber collection.
