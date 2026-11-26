@@ -190,6 +190,35 @@ async function refreshTibber(){
  }
 }
 
+
+function applyTibberLiveStatus(status){
+ const statusEl=$('tibber-status'),detail=$('tibber-detail'),live=status?.latest;
+ if(!statusEl||!detail)return;
+ const usable=status.status==='connected'&&!status.stale&&live;
+ tibberLive=usable?status:null;
+ if(usable)mode='live';
+ statusEl.className='tibber-state'+(usable?' online':' offline');
+ statusEl.textContent=usable?'CONNECTED · LIVE':String(status.status||'UNKNOWN').toUpperCase().replaceAll('_',' ');
+ const kw=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n))?powerDisplay(Number(n)):'—';
+ $('tibber-power').textContent=usable?kw(live.power):'—';
+ $('tibber-average').textContent=usable?kw(live.averagePower):'—';
+ $('tibber-peak').textContent=usable?kw(live.maxPower):'—';
+ $('tibber-solar').textContent='Unavailable';
+ if(usable){
+  detail.textContent=(status.homeName||'Tibber home')+' · Measurement '+new Date(live.timestamp).toLocaleString()+' · Live data received. Saved locally: '+(status.historyCount||0)+' samples at 5-minute intervals. '+(status.historyError||'Other device data is not connected yet.');
+ }else detail.textContent=(status.message||'No live measurement received yet.')+' The dashboard demo values below are synthetic and are not your home readings.';
+ renderConnectionStatus();
+}
+function connectTibberEvents(){
+ if(!('EventSource' in window))return;
+ const events=new EventSource('./api/tibber/events');
+ events.onmessage=event=>{
+  try{applyTibberLiveStatus(JSON.parse(event.data));}
+  catch(error){console.warn('Ignored invalid Tibber live event.',error);}
+ };
+ events.onerror=()=>{/* EventSource reconnects automatically; the 15-second status refresh remains as fallback. */};
+}
+
 function tibberChart(id,samples,hours=24){
  const el=$(id);el.replaceChildren();
  const end=Date.now(),start=end-hours*3600000,rows=samples.filter(s=>Date.parse(s.timestamp)>=start&&Date.parse(s.timestamp)<=end);
@@ -389,4 +418,4 @@ $('export').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type
 $('recorder').onclick=async()=>{try{if(location.protocol==='file:')throw Error('Start the optional local server with npm start, then open its printed address.');const response=await fetch('./api/history',{cache:'no-store'});if(!response.ok)throw Error('Recorder history is unavailable. Start the included local server and recorder; see README.');const next=M.validate(await response.json());data=next;mode='recorder';message('Loaded local recorder history. Click again to refresh; this is a snapshot.');render()}catch(e){message(e.message)}};
 if(C.illustration && !/^(?:https?:|\/\/|data:|javascript:)/i.test(C.illustration))$('house-art').src=C.illustration;
 $('house-art').onerror=()=>{$('house-art').onerror=null;$('house-art').src='./assets/starter-house.svg';message('Custom artwork was unavailable. Using the included generic illustration.')};
-show(location.hash.slice(1));refreshTibber();refreshMyUplink();refreshCameras();setInterval(()=>{if(!document.hidden){render();refreshTibber();refreshMyUplink()}},15000);
+show(location.hash.slice(1));connectTibberEvents();refreshTibber();refreshMyUplink();refreshCameras();setInterval(()=>{if(!document.hidden){render();refreshTibber();refreshMyUplink()}},15000);
