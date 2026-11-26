@@ -48,7 +48,7 @@ function nibeSparkline(rows){
 function ensureNibeHistoryDialog(){
  let dialog=$('nibe-history-dialog');if(dialog)return dialog;
  dialog=document.createElement('dialog');dialog.id='nibe-history-dialog';dialog.className='nibe-history-dialog';
- dialog.innerHTML='<div class="nibe-dialog-head"><div><div class="eyebrow">NIBE / LOCAL HISTORY</div><h2 id="nibe-dialog-title">Mäthistorik</h2><p id="nibe-dialog-meta" class="note"></p></div><button type="button" id="nibe-dialog-close" aria-label="Stäng historiken">✕</button></div><div class="nibe-dialog-range"><label for="nibe-dialog-hours">Tidsperiod</label><select id="nibe-dialog-hours"><option value="6">6 timmar</option><option value="24" selected>24 timmar</option><option value="168">7 dagar</option><option value="720">30 dagar</option></select></div><div id="nibe-dialog-chart" class="chart tall"></div><div class="table-scroll"><table><thead><tr><th>Time</th><th>Value</th></tr></thead><tbody id="nibe-dialog-table"></tbody></table></div>';
+ dialog.innerHTML='<div class="nibe-dialog-head"><div><div class="eyebrow">NIBE / LOKAL HISTORIK</div><h2 id="nibe-dialog-title">Mäthistorik</h2><p id="nibe-dialog-meta" class="note"></p></div><button type="button" id="nibe-dialog-close" aria-label="Stäng historiken">✕</button></div><div class="nibe-dialog-range"><label for="nibe-dialog-hours">Tidsperiod</label><select id="nibe-dialog-hours"><option value="6">6 timmar</option><option value="24" selected>24 timmar</option><option value="168">7 dagar</option><option value="720">30 dagar</option></select></div><div id="nibe-dialog-chart" class="chart tall"></div><div class="table-scroll"><table><thead><tr><th>Tid</th><th>Värde</th></tr></thead><tbody id="nibe-dialog-table"></tbody></table></div>';
  document.body.append(dialog);
  $('nibe-dialog-close').onclick=()=>dialog.close();
  $('nibe-dialog-hours').onchange=()=>drawNibeDialog(dialog.dataset.parameterId,dialog.dataset.parameterName,dialog.dataset.unit);
@@ -175,17 +175,17 @@ async function refreshTibber(){
   $('tibber-power').textContent=live?kw(live.power):'—';
   $('tibber-average').textContent=live?kw(live.averagePower):'—';
   $('tibber-peak').textContent=live?kw(live.maxPower):'—';
-  $('tibber-solar').textContent='Unavailable';
+  $('tibber-solar').textContent='Ej tillgänglig';
   if(live){
    const when=new Date(live.timestamp).toLocaleString();
-   detail.textContent=(status.homeName||'Tibber home')+' · Measurement '+when+' · '+(status.stale?'Den senaste mätningen är äldre än 3 minuter.':'Live-data mottagen.')+' Saved locally: '+(status.historyCount||0)+' samples at 5-minute intervals. '+(status.historyError||'Data från övriga enheter är ännu inte ansluten.');
+   detail.textContent=(status.homeName||'Tibber home')+' · Mätning '+when+' · '+(status.stale?'Den senaste mätningen är äldre än 3 minuter.':'Live-data mottagen.')+' Sparat lokalt: '+(status.historyCount||0)+' mätvärden med fem minuters intervall. '+(status.historyError||'Data från övriga enheter är ännu inte ansluten.');
   }else detail.textContent=(status.message||'Ingen live-mätning har tagits emot ännu.')+' Välj Demo manuellt för att visa syntetiska exempelvärden.';
   render();
  }catch(error){
   tibberLive=null;
   statusEl.className='tibber-state offline';
   statusEl.textContent='UNAVAILABLE';
-  detail.textContent='Kunde inte läsa Tibber-status: '+error.message+' Demo cards below are synthetic examples.';
+  detail.textContent='Kunde inte läsa Tibber-status: '+error.message+' Demokorten nedan visar syntetiska exempelvärden.';
   render();
  }
 }
@@ -197,7 +197,7 @@ function tibberChart(id,samples,hours=24){
  const values=rows.flatMap(s=>keys.map(k=>s[k.key])).filter(Number.isFinite);
  if(rows.length<2||!values.length){const empty=document.createElement('div');empty.className='empty';empty.textContent=rows.length?'Samlar in fler live-mätvärden till diagrammet.':'Tibber-historik samlas in. Låt Overwatch vara igång.';el.append(empty);return;}
  let min=Math.min(...values),max=Math.max(...values);const spread=max-min;const pad=spread>0?spread*.12:Math.max(Math.abs(max)*.12,1);min-=pad;max+=pad;
- const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label','Tibbers nät­effekt history');
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 230');svg.setAttribute('role','img');svg.setAttribute('aria-label','Tibbers näteffekt över tid');
  const add=(tag,attrs,txt)=>{const e=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(txt!==undefined)e.textContent=txt;svg.append(e);return e;};
  for(let i=0;i<=3;i++){const y=20+i*58;add('line',{x1:48,x2:780,y1:y,y2:y,stroke:'#35432f'});add('text',{x:2,y:y+4},((max-i*(max-min)/3)/1000).toFixed(1));}
  for(const k of keys){let segment=[],prev=null;const flush=()=>{if(segment.length>1)add('polyline',{points:segment.map(p=>p.join(',')).join(' '),fill:'none',stroke:k.color,'stroke-width':2,'stroke-linejoin':'round'});segment=[];};for(const s of rows){const n=s[k.key],at=Date.parse(s.timestamp);if(!Number.isFinite(n)){flush();prev=null;continue;}if(prev!==null&&at-prev>10*60*1000)flush();segment.push([48+(at-start)/Math.max(1,end-start)*732,20+(max-n)/(max-min)*174]);prev=at;}flush();}
@@ -383,7 +383,7 @@ function render(){
    $('samples-table').replaceChildren();
    data.samples.slice(-12).reverse().forEach(s=>{
     const row=document.createElement('tr');
-    [formatTime(s.at),Number.isFinite(s.values[key])?value(s.values[key],M.metrics[key].unit):'Unavailable'].forEach(t=>{
+    [formatTime(s.at),Number.isFinite(s.values[key])?value(s.values[key],M.metrics[key].unit):'Ej tillgänglig'].forEach(t=>{
      const td=document.createElement('td');td.textContent=t;row.append(td);
     });
     $('samples-table').append(row);
@@ -399,5 +399,5 @@ $('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.s
 $('export').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=mode==='demo'?'observatory-synthetic-demo.json':'observatory-readings.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message('Aktuella mätvärden har exporterats. Kontrollera dina egna mätvärden innan du delar filen.');};
 $('recorder').onclick=async()=>{try{if(location.protocol==='file:')throw Error('Starta den lokala servern med npm start och öppna sedan adressen som visas.');const response=await fetch('./api/history',{cache:'no-store'});if(!response.ok)throw Error('Recorder history is unavailable. Start the included local server och recorder; see README.');const next=M.validate(await response.json());data=next;mode='recorder';message('Hämtade local recorder history. Click again to refresh; this is a snapshot.');render()}catch(e){message(e.message)}};
 if(C.illustration && !/^(?:https?:|\/\/|data:|javascript:)/i.test(C.illustration))$('house-art').src=C.illustration;
-$('house-art').onerror=()=>{$('house-art').onerror=null;$('house-art').src='./assets/starter-house.svg';message('Custom artwork was unavailable. Using the included generic illustration.')};
+$('house-art').onerror=()=>{$('house-art').onerror=null;$('house-art').src='./assets/starter-house.svg';message('Den anpassade illustrationen kunde inte visas. Standardillustrationen används i stället.')};
 show(location.hash.slice(1));refreshTibber();refreshMyUplink();refreshCameras();setInterval(()=>{if(!document.hidden){render();refreshTibber();refreshMyUplink()}},15000);
