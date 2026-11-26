@@ -406,3 +406,8 @@ Added to the per-point history quality endpoint:
 Retention enforcement now runs when the SQLite store opens, after each batch write, and hourly from the server independently of NIBE polling. The hourly timer is unref'd and cleared on server close. Existing history API payloads and schema are unchanged; cleanup remains based on `received_at` and the 30-day NIBE retention setting.
 
 Added tests for coverage calculation and startup pruning. Local Windows test execution is pending. Next: fetch/fast-forward `overwatch-foundation`, run `npm.cmd test`, then restart the local server and inspect `/api/myuplink/history/quality?hours=720`. Do not claim the new behavior is locally verified until the test suite passes.
+
+
+### Local verification update — 2026-11-26
+
+The user pulled the NIBE history coverage/retention changes and ran `npm.cmd test` on Windows. Result: **53 tests passed, 0 failed**. This verifies the test suite locally. The remaining live check is to restart the local server so it loads the new code and inspect `/api/myuplink/history/quality?hours=720` for `expectedSamples`, `coveragePercent`, and `coveredHours` across the nine NIBE points. The retention implementation is covered by a startup-pruning test; a full 30-day expiry against the user's live database has not been forced or manually tested.
