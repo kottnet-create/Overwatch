@@ -22,6 +22,12 @@ const LIVE_QUERY = `subscription OverwatchLiveMeasurement($homeId: ID!) {
     accumulatedProduction
     lastMeterProduction
     lastMeterConsumption
+    currentL1
+    currentL2
+    currentL3
+    voltagePhase1
+    voltagePhase2
+    voltagePhase3
   }
 }`;
 
@@ -51,6 +57,12 @@ export function normalizeTibberLiveMeasurement(live) {
     accumulatedProduction: optionalNumber(live.accumulatedProduction),
     lastMeterProduction: optionalNumber(live.lastMeterProduction),
     lastMeterConsumption: optionalNumber(live.lastMeterConsumption),
+    currentL1: optionalNumber(live.currentL1),
+    currentL2: optionalNumber(live.currentL2),
+    currentL3: optionalNumber(live.currentL3),
+    voltagePhase1: optionalNumber(live.voltagePhase1),
+    voltagePhase2: optionalNumber(live.voltagePhase2),
+    voltagePhase3: optionalNumber(live.voltagePhase3),
   };
 }
 
