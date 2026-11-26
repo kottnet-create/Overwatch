@@ -5,6 +5,7 @@ import {createServer} from '../server.mjs';
 
 test('Tibber events endpoint streams the current status and subsequent live updates', async t => {
   let publish;
+  let response;
   const initial = {status: 'connected', stale: false, latest: {power: 1200}};
   const tibberMonitor = {
     getStatus: () => initial,
@@ -20,16 +21,19 @@ test('Tibber events endpoint streams the current status and subsequent live upda
     nibeHistory: {close() {}, getLatest: () => [], stats: () => ({}), prune() {}},
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  t.after(async () => {
+    // An SSE response intentionally remains open; destroy it before awaiting server.close().
+    response?.destroy();
+    await new Promise(resolve => server.close(resolve));
+  });
 
   const port = server.address().port;
-  const response = await new Promise((resolve, reject) => {
+  response = await new Promise((resolve, reject) => {
     const request = http.get({host: '127.0.0.1', port, path: '/api/tibber/events'}, resolve);
     request.on('error', reject);
   });
-  t.after(() => response.destroy());
   assert.equal(response.statusCode, 200);
-  assert.match(response.headers['content-type'], /text\/event-stream/);
+  assert.match(response.headers['content-type'], /text\\/event-stream/);
 
   const firstEvent = await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Timed out waiting for initial SSE status.')), 1000);
