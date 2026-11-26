@@ -425,3 +425,16 @@ Next: pull `overwatch-foundation`, run `npm.cmd test`, then open `http://127.0.0
 The user inspected the first diagnostic response: 499 points, 28 name-based candidates, but no confirmed compressor-frequency point. Expanded the read-only diagnostics to scan the full catalogue for frequency-like units (Hz/kHz/MHz/rpm/r/min/1/min/min^-1/s^-1) as well as names containing compressor, frequency, speed, motor or pump clues. The endpoint also reports counts for every observed unit. It remains diagnostic only and does not enable collection for any candidate. Added tests for unit-based discovery. Local test execution is pending.
 
 Next: pull `overwatch-foundation`, run `npm.cmd test`, restart the local server, and reopen `http://127.0.0.1:8780/api/myuplink/points/diagnostics`. Review `frequencyUnitCount`, `unitCounts`, and the candidates. If no credible frequency point appears, do not invent one; mark the compressor frequency unavailable through this myUplink point catalogue and continue with other priorities.
+
+
+## Verified NIBE compressor-frequency point — 2026-11-26
+
+The user confirmed that the myUplink point matches the value shown in the official NIBE app. The verified point is parameter ID `43122`, name `Aktuell kompressorfrekvens`, value observed `59`, unit `Hz`.
+
+Implementation on `overwatch-foundation`:
+- NIBE history collection explicitly recognizes parameter ID `43122` as well as the existing localized/English name patterns.
+- The Heat pump view recognizes this parameter ID for the compressor activity card and its history chart, so the mapping does not depend solely on the provider's display name.
+- The point remains read-only. Frequency is activity data in Hz, not electrical power.
+- Added a temporary-SQLite test to verify that the point is recorded and returned by the history API wrapper without recording unrelated catalogue points.
+
+The user has restarted the local server and confirmed the current value matches the NIBE app. The new persistence test still needs to be run locally as part of `npm.cmd test`. After updating the checkout, allow one or more five-minute collection cycles and verify that the compressor chart/history grows. Existing live database files are not edited by the code change.
