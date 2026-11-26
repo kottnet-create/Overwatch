@@ -438,3 +438,18 @@ Implementation on `overwatch-foundation`:
 - Added a temporary-SQLite test to verify that the point is recorded and returned by the history API wrapper without recording unrelated catalogue points.
 
 The user has restarted the local server and confirmed the current value matches the NIBE app. The new persistence test still needs to be run locally as part of `npm.cmd test`. After updating the checkout, allow one or more five-minute collection cycles and verify that the compressor chart/history grows. Existing live database files are not edited by the code change.
+
+## Thermal page startup fallback — 2026-11-26
+
+Investigated the user's report that refreshing the browser sometimes showed synthetic hot-water/outdoor/compressor cards instead of NIBE readings. The live status API and Connections page showed Tibber, myUplink/NIBE and Nord Pool connected with fresh data. In `public/app.js`, the thermal view rendered demo cards whenever NIBE points had not yet finished loading. This could briefly present synthetic values during startup and could leave the view in demo fallback when point loading failed.
+
+Changed on `overwatch-foundation`:
+- Added an explicit NIBE loading state to the thermal page.
+- While myUplink is loading, the page now shows a waiting card and waiting history message instead of synthetic values.
+- After real NIBE points/history load, the page rerenders from the actual data.
+- If myUplink or point loading fails, the page shows an unavailable state rather than inventing readings.
+- Synthetic thermal cards remain available only when the user explicitly selects Demo.
+
+Commit(s): `51ce183f28e3345f7e55b08c405b64d93be34a78`, `606b4c9a884175a45bdc04a86c6355fe7b405f38`.
+
+Verification: code reviewed after the GitHub updates. Browser runtime verification and the local `npm.cmd test` run are still pending. No server integration, SQLite data or provider credentials were changed.
