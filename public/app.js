@@ -1,6 +1,6 @@
 'use strict';
 const M=ObservatoryModel,C=window.OBSERVATORY_CONFIG||{},$=id=>document.getElementById(id);
-let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[],tibberPrices=null,nibePoints=[],nibePointUpdated=null,nibeHistoryRows=[];
+let data=M.demo(),mode='connecting',view='overview',tibberLive=null,tibberHistory=[],tibberPrices=null,nibePoints=[],nibePointUpdated=null,nibeHistoryRows=[],nibeLoadState='loading';
 const text=(id,value)=>$(id).textContent=value;
 const formatTime=at=>new Date(at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 const value=(n,unit='W')=>Number.isFinite(n)?(unit==='W'?(n/1000).toFixed(2):unit==='%'?Math.round(n):n.toFixed(1)):'—';
@@ -108,6 +108,7 @@ function wireNibeSpecialHistoryCards(){
  }
 }
 async function refreshMyUplink(){
+ nibeLoadState='loading';
  const statusEl=$('myuplink-status'),detail=$('myuplink-detail'),systemsEl=$('myuplink-systems'),connect=$('myuplink-connect');
  if(!statusEl||!detail||!systemsEl)return;
  try{
@@ -132,14 +133,19 @@ async function refreshMyUplink(){
    nibePoints=all;nibePointUpdated=new Date().toISOString();
    const hr=await fetch('./api/myuplink/history?hours=720',{cache:'no-store'});
    if(hr.ok){const saved=await hr.json();nibeHistoryRows=Array.isArray(saved.samples)?saved.samples:[];}
+   nibeLoadState=all.length?'ready':'empty';
    systemsEl.textContent+=' Found '+devices.length+' device(s) and '+all.length+' available data point(s).';
    if(pointResult.diagnostics?.length)systemsEl.textContent+=' Details: '+pointResult.diagnostics.map(d=>(d.deviceName||d.systemName||d.stage)+': '+d.error).join(' | ');
-   renderNibeCards();
+   render();
 
+  }else{
+   nibeLoadState='unavailable';render();
   }
  }catch(error){
+  nibeLoadState='unavailable';
   statusEl.className='tibber-state offline';statusEl.textContent='UNAVAILABLE';
   detail.textContent='Could not check myUplink account: '+error.message;
+  render();
  }
 }
 async function refreshTibber(){
@@ -300,14 +306,19 @@ function render(){
   const val=document.createElement('b');val.textContent=n;
   row.append(name,val);$('split').append(row);
  }
- if(nibePoints.length||live){
-  renderNibeCards();
- }else{
+ if(mode==='demo'){
   $('thermal-cards').replaceChildren(
    card('HOT WATER',v.hotWater,'°C','Synthetic example only.','load'),
    card('OUTDOOR',v.outdoor,'°C','Synthetic example only.','battery'),
    card('COMPRESSOR',v.compressor,'Hz','Synthetic example only.','solar')
   );
+ }else if(nibePoints.length){
+  renderNibeCards();
+ }else{
+  const waiting=nibeLoadState==='loading',empty=nibeLoadState==='empty';
+  const label=waiting?'WAITING FOR NIBE':empty?'NO NIBE POINTS':'NIBE UNAVAILABLE';
+  const note=waiting?'Connecting to myUplink and loading real measurements.':empty?'myUplink is connected, but returned no measurement points.':'Check the myUplink connection on the Connections page.';
+  $('thermal-cards').replaceChildren(card(label,null,'',note,'load'));
  }
  if(view==='overview'){
   if(live){
@@ -322,8 +333,10 @@ function render(){
    wireNibeSpecialHistoryCards();
   }else if(live){
    for(const id of ['compressor-chart']){const el=$(id);el.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent='Waiting for locally stored NIBE readings.';el.append(empty);}
-  }else{
+  }else if(mode==='demo'){
    chart('compressor-chart',['compressor'],subset());
+  }else{
+   const el=$('compressor-chart');el.replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent=nibeLoadState==='loading'?'Waiting for real NIBE history…':'No NIBE compressor history is available yet.';el.append(empty);
   }
  }
  if(view==='history'){
