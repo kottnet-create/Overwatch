@@ -128,7 +128,7 @@ async function refreshMyUplink(){
    systemsEl.textContent=items.length?'Found '+items.length+' system(s): '+(names.join(', ')||'myUplink system')+'. Reading device points…':'myUplink is connected, but no systems were returned.';
    statusEl.className='tibber-state online';statusEl.textContent='CONNECTED';
    const pr=await fetch('./api/myuplink/points',{cache:'no-store'}),pointResult=await pr.json();
-   if(!pr.ok){systemsEl.textContent+=' Device points could not be loaded: '+(pointResult.error||'HTTP '+pr.status)+'.';return;}
+   if(!pr.ok){nibeLoadState='unavailable';systemsEl.textContent+=' Device points could not be loaded: '+(pointResult.error||'HTTP '+pr.status)+'.';render();return;}
    const devices=pointResult.devices||[],all=devices.flatMap(d=>(d.points||[]).map(p=>({...p,deviceName:d.deviceName||d.productName||'NIBE'})));
    nibePoints=all;nibePointUpdated=new Date().toISOString();
    const hr=await fetch('./api/myuplink/history?hours=720',{cache:'no-store'});
