@@ -153,7 +153,7 @@ async function refreshMyUplink(){
   }
  }catch(error){
   nibeLoadState='unavailable';nibeLoadMessage='myUplink loading failed: '+error.message;
-  statusEl.className='tibber-state offline';statusEl.textContent='UNAVAILABLE';
+  statusEl.className='tibber-state offline';statusEl.textContent='OTILLGÄNGLIG';
   detail.textContent='Could not check myUplink account: '+error.message;
   render();
  }
@@ -170,7 +170,7 @@ async function refreshTibber(){
   if(status.historyCount!==tibberHistory.length){const historyResponse=await fetch('./api/tibber/history',{cache:'no-store'});if(historyResponse.ok){const saved=await historyResponse.json();tibberHistory=Array.isArray(saved.samples)?saved.samples:[];}}
   const [priceResponse,sourceResponse]=await Promise.all([fetch('./api/spot-prices',{cache:'no-store'}),fetch('./api/status',{cache:'no-store'})]);if(priceResponse.ok)tibberPrices=await priceResponse.json();if(sourceResponse.ok){const aggregate=await sourceResponse.json();sourceStatuses=Array.isArray(aggregate.sources)?aggregate.sources:[];}
   statusEl.className='tibber-state'+(status.status==='connected'&&!status.stale?' online':' offline');
-  statusEl.textContent=status.status==='connected'&&!status.stale?'CONNECTED · LIVE':String(status.status||'UNKNOWN').toUpperCase().replaceAll('_',' ');
+  statusEl.textContent=status.status==='connected'&&!status.stale?'ANSLUTEN · LIVE':String(status.status||'OKÄND').toUpperCase().replaceAll('_',' ');
   const kw=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n))?powerDisplay(Number(n)):'—';
   $('tibber-power').textContent=live?kw(live.power):'—';
   $('tibber-average').textContent=live?kw(live.averagePower):'—';
@@ -179,7 +179,7 @@ async function refreshTibber(){
   if(live){
    const when=new Date(live.timestamp).toLocaleString();
    detail.textContent=(status.homeName||'Tibber home')+' · Measurement '+when+' · '+(status.stale?'Latest reading is older than 3 minutes.':'Live data received.')+' Saved locally: '+(status.historyCount||0)+' samples at 5-minute intervals. '+(status.historyError||'Other device data is not connected yet.');
-  }else detail.textContent=(status.message||'No live measurement received yet.')+' The dashboard demo values below are synthetic and are not your home readings.';
+  }else detail.textContent=(status.message||'Ingen live-mätning har tagits emot ännu.')+' Välj Demo manuellt för att visa syntetiska exempelvärden.';
   render();
  }catch(error){
   tibberLive=null;
@@ -306,13 +306,15 @@ function render(){
  text('dataset-label',live?'Tibber Pulse · direkta livevärden':'Komplett energibalans ännu inte tillgänglig');
  text('clock',new Date().toLocaleString(undefined,{weekday:'short',hour:'2-digit',minute:'2-digit'}));
  text('data-time',live?'Senaste Tibber-mätning · '+formatTime(t.timestamp):(mode==='demo'?'Syntetiska exempeldata':'Senaste importerade mätning')+' · '+formatTime(latest.at));
- text('scene-source',live?'LIVE TIBBER DATA':mode==='demo'?'SAMPLE HOME':'YOUR IMPORTED READINGS');
+ text('scene-source',live?'TIBBER · LIVE':mode==='demo'?'SYNTETISK DEMO':'INVÄNTAR DATA');
  text('subtitle',C.subtitle||'Husets energi. Samlad och begriplig.');
  renderPriceChart();
  renderConnectionStatus();
  $('scene-source').textContent=live?'TIBBER · LIVE':mode==='demo'?'SYNTETISK DEMO':'INVÄNTAR DATA';
  if(live){
   $('energy-cards').replaceChildren(card('NÄTEFFEKT · TIBBER',t.power,'W','Tibbers rapporterade momentana effektvärde.','grid'),card('MEDELEFFEKT',t.averagePower,'W','Tibbers medelvärde i aktuell mätperiod.','load'),card('TOPPEFFEKT',t.maxPower,'W','Tibbers högsta rapporterade effekt.','battery'),card('SOLPRODUKTION','Ej tillgänglig','W','Väntar på verifierad Huawei-data.','solar'));
+ }else if(mode==='demo'){
+  $('energy-cards').replaceChildren(card('DEMO · SOLPRODUKTION',v.solar,'W','Syntetiskt demoexempel – inte en verklig mätning.','solar'),card('DEMO · HUSFÖRBRUKNING',v.siteLoad,'W','Syntetiskt demoexempel – inte en verklig mätning.','load'),card('DEMO · NÄTUTBYTE',v.gridNet,'W','Syntetiskt demoexempel – inte en verklig mätning.','grid'),card('DEMO · BATTERINIVÅ',v.batterySOC,'%','Syntetiskt demoexempel – inte en verklig mätning.','battery'));
  }else{
   $('energy-cards').replaceChildren(card('SOLPRODUKTION',null,'W','Ingen verifierad livekälla.','solar'),card('HUSFÖRBRUKNING',null,'W','Kräver verifierad energibalans.','load'),card('NÄTEFFEKT',null,'W','Väntar på aktuell Tibber-mätning.','grid'),card('BATTERI',null,'%','Väntar på verifierad Emaldo-data.','battery'));
  }
@@ -331,9 +333,9 @@ function render(){
  renderOverviewSources();
  if(mode==='demo'){
   $('thermal-cards').replaceChildren(
-   card('HOT WATER',v.hotWater,'°C','Synthetic example only.','load'),
-   card('OUTDOOR',v.outdoor,'°C','Synthetic example only.','battery'),
-   card('COMPRESSOR',v.compressor,'Hz','Synthetic example only.','solar')
+   card('VARMVATTEN',v.hotWater,'°C','Syntetiskt demoexempel.','load'),
+   card('UTETEMPERATUR',v.outdoor,'°C','Syntetiskt demoexempel.','battery'),
+   card('KOMPRESSOR',v.compressor,'Hz','Syntetiskt demoexempel.','solar')
   );
  }else if(nibePoints.length){
   renderNibeCards();
@@ -345,6 +347,7 @@ function render(){
  }
  if(view==='overview'){
   if(live){tibberChart('energy-chart',tibberHistory,Number($('overview-range').value));}
+  else if(mode==='demo'){chart('energy-chart',['solar','siteLoad'],subset(Number($('overview-range').value)));}
   else{$('energy-chart').replaceChildren();const empty=document.createElement('div');empty.className='empty';empty.textContent='Väntar på riktiga mätvärden från Tibber.';$('energy-chart').append(empty);}
  }
  if(view==='thermal'){
