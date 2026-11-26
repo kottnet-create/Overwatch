@@ -302,3 +302,8 @@ Retention remains 30 days for NIBE. The shared measurement store prunes expired 
 ### Expanded NIBE frequency-point discovery
 
 The read-only `GET /api/myuplink/points/diagnostics` search now scans the complete returned point catalogue and includes a point if its name contains compressor/frequency/speed/motor/pump clues or if its unit looks like a frequency/speed unit (`Hz`, `kHz`, `MHz`, `rpm`, `r/min`, `1/min`, `min^-1`, `s^-1`). The response also reports all observed unit counts and which candidates matched by unit. This is a discovery heuristic only: it does not prove that a point is compressor frequency and does not change the collection list.
+
+
+## Verified NIBE compressor frequency mapping — 2026-11-26
+
+The user verified the myUplink point against the official NIBE app: parameter ID `43122`, `Aktuell kompressorfrekvens`, unit `Hz`. The latest observed value was 59 Hz. NIBE history collection now explicitly includes this parameter ID, and the Heat pump UI uses the same ID to identify the compressor activity card and chart. The reading is a frequency/activity metric, not electrical power. Collection remains read-only; a temporary-database regression test verifies that the point is persisted and returned while unrelated points are excluded.
