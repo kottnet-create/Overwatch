@@ -17,6 +17,9 @@ const root=path.dirname(fileURLToPath(import.meta.url));
 async function readJsonBody(req){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw new Error('Request body too large.');}if(!raw)return {};const value=JSON.parse(raw);if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid request body.');return value;}
 const routes={'/':'index.html','/index.html':'index.html','/style.css':'style.css','/app.js':'app.js','/model.js':'model.js','/config.js':'config.js','/assets/starter-house.svg':'assets/starter-house.svg'};
 export function createServer({historyFile=path.join(root,'data/history.json'),tibberMonitor=createTibberMonitor(),nordPoolPrices=createNordPoolPrices(),myUplink=createMyUplink({root}),nibeHistory=createNibeHistory({dbPath:process.env.OVERWATCH_DB_PATH?path.resolve(root,process.env.OVERWATCH_DB_PATH):path.join(root,'data','overwatch.sqlite')}),autoCollect=false}={}){
+ const tibberClients=new Set();
+ const publishTibber=status=>{const payload='data: '+JSON.stringify(status)+'\n\n';for(const client of tibberClients){try{client.write(payload);}catch{tibberClients.delete(client);}}};
+ const unsubscribeTibber=typeof tibberMonitor.subscribe==='function'?tibberMonitor.subscribe(publishTibber):()=>{};
  const server=http.createServer(async(req,res)=>{
   const send=(status,body,type='text/plain; charset=utf-8')=>{res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-src 'self' http://127.0.0.1:1984 http://localhost:1984; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"});res.end(req.method==='HEAD'?undefined:body)};
   if(!/^(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(req.headers.host||''))return send(403,'Local host only.');
@@ -66,6 +69,15 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
   if(route==='/api/myuplink/history/quality'){const requestedHours=Number(new URL(req.url,'http://localhost').searchParams.get('hours')||720);return send(200,JSON.stringify(nibeHistory.getPointStats(Number.isFinite(requestedHours)?requestedHours:720)),'application/json');}
   if(route==='/api/myuplink/history/latest')return send(200,JSON.stringify({stats:nibeHistory.stats(),samples:nibeHistory.getLatest()}),'application/json');
   if(route==='/api/history'){try{const data=readHistory(historyFile);return data?send(200,JSON.stringify(data),'application/json'):send(404,'No history yet. Start the recorder first.');}catch{return send(422,'History is invalid or too large. Review the recorder output.');}}
+  if(route==='/api/tibber/events'&&req.method==='GET'){
+   res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-cache, no-transform','Connection':'keep-alive','X-Accel-Buffering':'no','X-Content-Type-Options':'nosniff'});
+   res.write('retry: 3000\n');
+   res.write('data: '+JSON.stringify(tibberMonitor.getStatus())+'\n\n');
+   tibberClients.add(res);
+   const heartbeat=setInterval(()=>{if(!res.destroyed)res.write(': keep-alive\n\n');},25000);
+   req.on('close',()=>{clearInterval(heartbeat);tibberClients.delete(res);});
+   return;
+  }
   if(route==='/api/tibber/status')return send(200,JSON.stringify(tibberMonitor.getStatus()),'application/json');
   if(route==='/api/tibber/history')return send(200,JSON.stringify(tibberMonitor.getHistory()),'application/json');
   if(route==='/api/tibber/prices')return send(200,JSON.stringify(tibberMonitor.getPrices()),'application/json');
@@ -86,7 +98,7 @@ export function createServer({historyFile=path.join(root,'data/history.json'),ti
  retentionTimer=setInterval(()=>{try{nibeHistory.prune();}catch(error){console.error('NIBE history retention cleanup failed:',error.message);}},60*60*1000);
  retentionTimer.unref?.();
  if(autoCollect){collectNibe();collectTimer=setInterval(collectNibe,5*60*1000);collectTimer.unref?.();}
- server.on('close',()=>{if(collectTimer)clearInterval(collectTimer);if(retentionTimer)clearInterval(retentionTimer);tibberMonitor.close();myUplink.close();nibeHistory.close();});
+ server.on('close',()=>{unsubscribeTibber();for(const client of tibberClients)client.end();tibberClients.clear();if(collectTimer)clearInterval(collectTimer);if(retentionTimer)clearInterval(retentionTimer);tibberMonitor.close();myUplink.close();nibeHistory.close();});
  return server;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
