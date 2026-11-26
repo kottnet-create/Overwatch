@@ -491,3 +491,14 @@ A fresh read-only myUplink point catalogue confirmed parameter ID `41778` (`Aktu
 - NIBE compressor frequency is verified on parameter 41778 and should not be changed while developing energy-flow functionality.
 
 Next: continue with provider-neutral energy-flow readiness and data-quality diagnostics, without wiring unverified Huawei/Emaldo data into calculations or changing working NIBE/Tibber collection.
+
+
+## Dashboard interface branch — 2026-11-26
+
+- Created `feature/dashboard-energy-overview` from `overwatch-foundation` at commit `578d5135a06f0c0b0ad50628ede7b0f945a0225a`.
+- Dashboard work is isolated on the feature branch; no integration/backend files are intended to change.
+- First UI slice: Swedish overview labels; a clearly incomplete energy-balance panel; Tibber L1/L2/L3 current and voltage display; and a compact source-quality summary using read-only `GET /api/status`.
+- Tibber `power` must not be labelled as verified total household consumption. Phase current/voltage must not be used to estimate total power.
+- Existing NIBE history UI, Nord Pool price graph/negative-price warning and camera panels remain in place.
+- No backend adapters, calculations, SQLite storage, credentials or camera controls are changed in this dashboard slice.
+- Verification required: run `npm.cmd test` locally, check dashboard in Edge at desktop/mobile widths, confirm NIBE, Tibber, price and camera sections render, then inspect the Git diff before committing or opening a PR.
