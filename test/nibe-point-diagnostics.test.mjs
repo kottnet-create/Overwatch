@@ -26,3 +26,18 @@ test('returns an empty diagnostic result for missing or malformed point data', (
   assert.equal(result.candidateCount,0);
   assert.deepEqual(result.candidates,[]);
 });
+
+
+test('finds frequency-like units even when the point name is not descriptive', () => {
+  const result = findNibePointCandidates({devices:[{points:[
+    {parameterId:'11',parameterName:'Parameter 11',value:48,unit:'Hz'},
+    {parameterId:'12',parameterName:'Parameter 12',value:1450,unit:'rpm'},
+    {parameterId:'13',parameterName:'BT50 Room temperature',value:21,unit:'°C'},
+  ]}]});
+  assert.equal(result.totalPoints,3);
+  assert.equal(result.frequencyUnitCount,2);
+  assert.equal(result.candidateCount,2);
+  assert.equal(result.candidates[0].frequencyUnit,true);
+  assert.equal(result.candidates[1].frequencyUnit,true);
+  assert.equal(result.unitCounts['°C'],1);
+});
