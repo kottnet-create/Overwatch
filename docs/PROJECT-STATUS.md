@@ -502,3 +502,11 @@ Next: continue with provider-neutral energy-flow readiness and data-quality diag
 - Existing NIBE history UI, Nord Pool price graph/negative-price warning and camera panels remain in place.
 - No backend adapters, calculations, SQLite storage, credentials or camera controls are changed in this dashboard slice.
 - Verification required: run `npm.cmd test` locally, check dashboard in Edge at desktop/mobile widths, confirm NIBE, Tibber, price and camera sections render, then inspect the Git diff before committing or opening a PR.
+
+
+### UI polish follow-up — 2026-11-26
+
+- Swedish labels were extended to the main page chrome and remaining views.
+- Explicit Demo selection continues to show synthetic energy tiles and history, clearly marked as demo data. Outside Demo, missing live provider data remains unavailable rather than falling back to synthetic values.
+- Live overview shows Tibber phase current and voltage individually without inferring total power.
+- Local tests and Edge/browser checks remain pending on the Windows checkout.
